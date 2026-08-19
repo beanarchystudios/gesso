@@ -3,9 +3,19 @@ import { query } from '$app/server';
 import { error } from '@sveltejs/kit';
 
 interface CanvasProfile {
+	id?: number;
 	name?: string;
 	short_name?: string;
+	sortable_name?: string;
 	avatar_url?: string;
+	title?: string | null;
+	bio?: string | null;
+	primary_email?: string | null;
+	login_id?: string | null;
+	time_zone?: string | null;
+	locale?: string | null;
+	effective_locale?: string | null;
+	pronouns?: string | null;
 }
 
 interface CanvasCourse {
@@ -33,6 +43,43 @@ interface CanvasTab {
 	html_url?: string;
 	position?: number;
 	type?: string;
+}
+
+interface CanvasConversationParticipant {
+	id: number;
+	name?: string;
+	avatar_url?: string | null;
+}
+
+interface CanvasConversation {
+	id: number;
+	subject?: string | null;
+	workflow_state?: string;
+	last_message?: string | null;
+	last_message_at?: string | null;
+	last_authored_message_at?: string | null;
+	message_count?: number;
+	subscribed?: boolean;
+	private?: boolean;
+	starred?: boolean;
+	properties?: string[];
+	audience?: number[];
+	participants?: CanvasConversationParticipant[];
+	avatar_url?: string | null;
+	context_code?: string | null;
+	context_name?: string | null;
+}
+
+interface CanvasConversationMessage {
+	id: number;
+	body?: string | null;
+	created_at?: string | null;
+	author_id?: number | null;
+	generated?: boolean;
+}
+
+interface CanvasSingleConversation extends CanvasConversation {
+	messages?: CanvasConversationMessage[];
 }
 
 export const getCourses = query(async () => {
@@ -178,6 +225,138 @@ export const getCourseFrontPage = query('unchecked', async (courseId: string) =>
 	};
 });
 
+export const getConversations = query(async () => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+
+	if (!apiKey || !instanceUrl) {
+		error(500, 'Canvas is not configured');
+	}
+
+	const headers = { Authorization: `Bearer ${apiKey}` };
+
+	const colorsPromise = fetch(`${instanceUrl}/api/v1/users/self/colors`, { headers })
+		.then(async (r) => {
+			if (!r.ok) return {} as CanvasColors;
+			try {
+				return (await r.json()) as CanvasColors;
+			} catch {
+				return {} as CanvasColors;
+			}
+		})
+		.catch(() => ({}) as CanvasColors);
+
+	// fetch all pages — Canvas caps per_page at 100, inbox can easily exceed 50
+	const perPage = '100';
+	let page = 1;
+	const allConversations: CanvasConversation[] = [];
+	while (true) {
+		const url = new URL(`${instanceUrl}/api/v1/conversations`);
+		url.searchParams.set('per_page', perPage);
+		url.searchParams.set('page', String(page));
+		url.searchParams.append('include[]', 'participant_avatars');
+		url.searchParams.set('scope', 'inbox');
+
+		const res = await fetch(url, { headers });
+		if (!res.ok) {
+			error(res.status, 'Unable to load Canvas conversations');
+		}
+		const batch: CanvasConversation[] = await res.json();
+		allConversations.push(...batch);
+
+		const link = res.headers.get('Link') ?? res.headers.get('link');
+		const hasNext = link ? link.includes('rel="next"') : false;
+		if (hasNext) {
+			page += 1;
+			continue;
+		}
+		if (batch.length < Number(perPage)) break;
+		// fallback when Link header missing: stop when batch < perPage, else continue one more page
+		if (batch.length === 0) break;
+		page += 1;
+		if (page > 20) break; // safety cap ~2000 conversations
+	}
+
+	const colors = await colorsPromise;
+
+	const conversations = allConversations;
+	return conversations.map((conv) => {
+		const participants = (conv.participants ?? []).map((p) => ({
+			id: p.id,
+			name: p.name ?? 'Unknown',
+			avatarUrl: p.avatar_url ?? null
+		}));
+		const color = conv.context_code ? (colors.custom_colors?.[conv.context_code] ?? null) : null;
+		return {
+			id: conv.id,
+			subject: conv.subject ?? '(No subject)',
+			workflowState: conv.workflow_state ?? 'read',
+			unread: conv.workflow_state === 'unread',
+			starred: conv.starred ?? false,
+			messageCount: conv.message_count ?? 1,
+			lastMessage: conv.last_message ?? '',
+			lastMessageAt: conv.last_message_at ?? conv.last_authored_message_at ?? null,
+			participants,
+			contextCode: conv.context_code ?? null,
+			contextName: conv.context_name ?? null,
+			color,
+			properties: conv.properties ?? [],
+			audience: conv.audience ?? []
+		};
+	});
+});
+
+export const getConversation = query('unchecked', async (conversationId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedId = Number(conversationId);
+
+	if (!apiKey || !instanceUrl) {
+		error(500, 'Canvas is not configured');
+	}
+	if (!Number.isSafeInteger(parsedId) || parsedId <= 0) {
+		error(400, 'Invalid conversation ID');
+	}
+
+	const url = new URL(`${instanceUrl}/api/v1/conversations/${parsedId}`);
+	url.searchParams.append('include[]', 'participant_avatars');
+	url.searchParams.set('auto_mark_as_read', 'false');
+
+	const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+
+	if (!response.ok) {
+		error(response.status, 'Unable to load conversation');
+	}
+
+	const conv: CanvasSingleConversation = await response.json();
+	const participants = (conv.participants ?? []).map((p) => ({
+		id: p.id,
+		name: p.name ?? 'Unknown',
+		avatarUrl: p.avatar_url ?? null
+	}));
+
+	const messages = (conv.messages ?? []).map((m) => ({
+		id: m.id,
+		body: m.body ?? '',
+		createdAt: m.created_at ?? null,
+		authorId: m.author_id ?? null,
+		generated: m.generated ?? false
+	}));
+
+	return {
+		id: conv.id,
+		subject: conv.subject ?? '(No subject)',
+		workflowState: conv.workflow_state ?? 'read',
+		unread: conv.workflow_state === 'unread',
+		messageCount: conv.message_count ?? messages.length,
+		participants,
+		messages,
+		contextCode: conv.context_code ?? null,
+		contextName: conv.context_name ?? null,
+		properties: conv.properties ?? []
+	};
+});
+
 export const getCanvasUser = query(async () => {
 	const apiKey = env.CANVAS_API_KEY;
 	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
@@ -196,7 +375,19 @@ export const getCanvasUser = query(async () => {
 
 	const profile: CanvasProfile = await response.json();
 	return {
+		id: profile.id ?? null,
 		name: profile.name ?? profile.short_name ?? 'Canvas user',
-		avatarUrl: profile.avatar_url ?? null
+		shortName: profile.short_name ?? null,
+		sortableName: profile.sortable_name ?? null,
+		avatarUrl: profile.avatar_url ?? null,
+		title: profile.title ?? null,
+		bio: profile.bio ?? null,
+		primaryEmail: profile.primary_email ?? null,
+		loginId: profile.login_id ?? null,
+		timeZone: profile.time_zone ?? null,
+		locale: profile.locale ?? null,
+		effectiveLocale: profile.effective_locale ?? null,
+		pronouns: profile.pronouns ?? null,
+		profileUrl: `${instanceUrl}/profile`
 	};
 });

@@ -156,7 +156,7 @@
 							/>
 							<Avatar.Fallback>{initials(user.name)}</Avatar.Fallback>
 						</Avatar.Root>
-						<p title={user.name}>{user.name}</p>
+						<p title={user.name} class="text-base">{user.name}</p>
 					</a>
 				{/snippet}
 			</Sidebar.MenuButton>

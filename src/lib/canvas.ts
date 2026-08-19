@@ -2,6 +2,8 @@ import { browser } from '$app/environment';
 import Dexie, { type EntityTable } from 'dexie';
 import {
 	getCanvasUser as fetchCanvasUser,
+	getConversation as fetchConversation,
+	getConversations as fetchConversations,
 	getCourses as fetchCourses,
 	getCourseFrontPage as fetchCourseFrontPage,
 	getCourseTabs as fetchCourseTabs,
@@ -14,7 +16,7 @@ interface CacheEntry<T = unknown> {
 	updatedAt: number;
 }
 
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 const FRESH_FOR = 5 * 60 * 1000;
 const MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
@@ -88,6 +90,14 @@ export function getCourseTabs(courseId: string) {
 
 export function getCourseFrontPage(courseId: string) {
 	return cached(`course:${courseId}:front-page`, () => fetchCourseFrontPage(courseId));
+}
+
+export function getConversations() {
+	return cached('conversations', () => fetchConversations());
+}
+
+export function getConversation(conversationId: string) {
+	return cached(`conversation:${conversationId}`, () => fetchConversation(conversationId));
 }
 
 export async function clearCanvasCache() {
