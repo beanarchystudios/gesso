@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { getFavoriteCourses } from '$lib/canvas.remote';
+	import { getFavoriteCourses } from '$lib/canvas';
 	import * as Card from '$lib/components/ui/card';
 
 	const courses = getFavoriteCourses();
@@ -13,7 +13,7 @@
 <main class="w-full overflow-y-auto p-6">
 	{#await courses}
 		<div
-			class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+			class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
 			aria-label="Loading favorite courses"
 		>
 			{#each Array(3) as _ (_)}
@@ -23,7 +23,7 @@
 	{:then courses}
 		{#if courses.length > 0}
 			<div
-				class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
+				class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
 			>
 				{#each courses as course (course.id)}
 					<a href={resolve('/(app)/courses/[courseId]', { courseId: course.id.toString() })}>

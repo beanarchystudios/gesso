@@ -1,24 +1,35 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getCourseFrontPage } from '$lib/canvas.remote';
+	import { getCourseFrontPage, getFavoriteCourses } from '$lib/canvas';
 	import { Spinner } from '$lib/components/ui/spinner';
 
-	const frontPage = $derived(getCourseFrontPage(page.params.courseId!));
+	const coursePage = $derived(
+		Promise.all([getCourseFrontPage(page.params.courseId!), getFavoriteCourses()]).then(
+			([frontPage, courses]) => ({
+				frontPage,
+				courseName:
+					courses.find((course) => course.id.toString() === page.params.courseId)?.name ??
+					frontPage.title
+			})
+		)
+	);
 </script>
 
 <svelte:head>
-	<title>Course | Gesso</title>
+	{#await coursePage then coursePage}
+		<title>{coursePage.courseName} | Gesso</title>
+	{/await}
 </svelte:head>
 
 <main class="h-full w-full overflow-y-auto p-6">
-	{#await frontPage}
+	{#await coursePage}
 		<div class="flex min-h-full items-center justify-center">
 			<Spinner class="size-10 text-muted-foreground" />
 		</div>
-	{:then frontPage}
+	{:then coursePage}
 		<article class="course-content mx-auto w-full max-w-5xl">
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html frontPage.body}
+			{@html coursePage.frontPage.body}
 		</article>
 	{:catch}
 		<p class="text-destructive">Unable to load the course front page.</p>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { getFavoriteCourses } from '$lib/canvas.remote';
+	import { getFavoriteCourses } from '$lib/canvas';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import AppSidebar from './app-sidebar.svelte';
 
