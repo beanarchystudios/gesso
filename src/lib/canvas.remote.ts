@@ -1,4 +1,4 @@
-import { env } from '$env/dynamic/private';
+import { env } from './canvas-env.server';
 import { command, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 
@@ -267,13 +267,13 @@ export const getCourseModules = query('unchecked', async (courseId: string) => {
 	const modules: CanvasModule[] = [];
 	let page = 1;
 	while (true) {
-		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/modules`);
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/modules`);
 		url.searchParams.set('per_page', '100');
 		url.searchParams.set('page', String(page));
 		url.searchParams.append('include[]', 'items');
 		url.searchParams.append('include[]', 'content_details');
 
-		const res = await fetch(url, { headers });
+		const res: Response = await fetch(url, { headers });
 		if (!res.ok) {
 			error(res.status, 'Unable to load course modules');
 		}
@@ -376,13 +376,13 @@ export const getConversations = query(async () => {
 	let page = 1;
 	const allConversations: CanvasConversation[] = [];
 	while (true) {
-		const url = new URL(`${instanceUrl}/api/v1/conversations`);
+		const url: URL = new URL(`${instanceUrl}/api/v1/conversations`);
 		url.searchParams.set('per_page', perPage);
 		url.searchParams.set('page', String(page));
 		url.searchParams.append('include[]', 'participant_avatars');
 		url.searchParams.set('scope', 'inbox');
 
-		const res = await fetch(url, { headers });
+		const res: Response = await fetch(url, { headers });
 		if (!res.ok) {
 			error(res.status, 'Unable to load Canvas conversations');
 		}
@@ -521,7 +521,7 @@ export const bulkUpdateConversations = command(
 			if (!Number.isSafeInteger(parsedId) || parsedId <= 0) continue;
 			const params = new URLSearchParams();
 			params.set('conversation[workflow_state]', input.workflowState);
-			const res = await fetch(`${instanceUrl}/api/v1/conversations/${parsedId}`, {
+			const res: Response = await fetch(`${instanceUrl}/api/v1/conversations/${parsedId}`, {
 				method: 'PUT',
 				headers,
 				body: params.toString()
@@ -973,11 +973,11 @@ export const getCourseAssignments = query('unchecked', async (courseId: string) 
 	const assignments: CanvasAssignment[] = [];
 	let page = 1;
 	while (true) {
-		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments`);
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments`);
 		url.searchParams.set('per_page', '100');
 		url.searchParams.set('page', String(page));
 		url.searchParams.set('order_by', 'due_at');
-		const res = await fetch(url, { headers });
+		const res: Response = await fetch(url, { headers });
 		if (!res.ok) error(res.status, 'Unable to load assignments');
 		const batch: CanvasAssignment[] = await res.json();
 		if (!Array.isArray(batch)) break;
@@ -1047,12 +1047,12 @@ export const getCoursePeople = query('unchecked', async (courseId: string) => {
 	const people: CanvasCourseUser[] = [];
 	let page = 1;
 	while (true) {
-		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/users`);
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/users`);
 		url.searchParams.set('per_page', '100');
 		url.searchParams.set('page', String(page));
 		url.searchParams.append('include[]', 'enrollments');
 		url.searchParams.append('include[]', 'avatar_url');
-		const res = await fetch(url, { headers });
+		const res: Response = await fetch(url, { headers });
 		if (!res.ok) error(res.status, 'Unable to load people');
 		const batch: CanvasCourseUser[] = await res.json();
 		if (!Array.isArray(batch)) break;
@@ -1091,11 +1091,11 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 	const pages: CanvasWikiPageListItem[] = [];
 	let page = 1;
 	while (true) {
-		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages`);
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages`);
 		url.searchParams.set('per_page', '100');
 		url.searchParams.set('page', String(page));
 		url.searchParams.set('sort', 'title');
-		const res = await fetch(url, { headers });
+		const res: Response = await fetch(url, { headers });
 		if (!res.ok) {
 			if (res.status === 404) return [];
 			error(res.status, 'Unable to load pages');
