@@ -27,7 +27,10 @@
 			<Spinner class="size-10 text-muted-foreground" />
 		</div>
 	{:then coursePage}
-		<article class="course-content mx-auto w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl">
+		<article
+			class:media-centered={page.params.courseId === '66153'}
+			class="course-content mx-auto w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl"
+		>
 			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 			{@html coursePage.frontPage.body}
 		</article>
@@ -41,6 +44,13 @@
 	.course-content :global(video),
 	.course-content :global(iframe) {
 		max-width: 100%;
+	}
+
+	.media-centered :global(img) {
+		display: block;
+		float: none !important;
+		height: auto;
+		margin-inline: auto !important;
 	}
 
 	.course-content :global(a) {
