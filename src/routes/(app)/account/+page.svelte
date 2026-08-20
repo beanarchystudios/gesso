@@ -17,12 +17,22 @@
 		AlertCircleIcon,
 		Edit02Icon,
 		ExternalLinkIcon,
+		Link01Icon,
 		Mail01Icon,
 		RefreshIcon,
+		Search01Icon,
 		Tick02Icon,
 		UserIcon
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { getEnhancedSearchEnabled, setEnhancedSearchEnabled } from '$lib/search-settings';
+	import {
+		clearSearchIndex,
+		getIndexingStatus,
+		rebuildSearchIndex,
+		subscribeStatus
+	} from '$lib/search';
+	import { onMount } from 'svelte';
 
 	const user = getCanvasUser();
 
@@ -35,6 +45,62 @@
 	let connectionMessage = $state('');
 	let savingConnection = $state(false);
 	let editingConnection = $state(false);
+
+	let enhancedSearchEnabled = $state(false);
+	let searchLoading = $state(true);
+	let searchToggling = $state(false);
+	let searchSettingsError = $state<string | null>(null);
+	let searchIndexingStatus = $state(getIndexingStatus());
+
+	onMount(() => {
+		void getEnhancedSearchEnabled().then((enabled) => {
+			enhancedSearchEnabled = enabled;
+			searchLoading = false;
+			searchIndexingStatus = getIndexingStatus();
+		});
+		const unsub = subscribeStatus(() => {
+			searchIndexingStatus = getIndexingStatus();
+		});
+		return unsub;
+	});
+
+	async function handleToggleEnhancedSearch() {
+		const next = !enhancedSearchEnabled;
+		searchToggling = true;
+		searchSettingsError = null;
+		try {
+			await setEnhancedSearchEnabled(next);
+			enhancedSearchEnabled = next;
+			if (next) {
+				searchIndexingStatus = getIndexingStatus();
+				try {
+					await rebuildSearchIndex();
+				} catch (e) {
+					// keep toggle on but status will show error
+					console.error(e);
+				}
+				searchIndexingStatus = getIndexingStatus();
+			} else {
+				clearSearchIndex();
+				searchIndexingStatus = getIndexingStatus();
+			}
+		} catch (error) {
+			searchSettingsError =
+				error instanceof Error ? error.message : 'Could not save the search setting';
+		} finally {
+			searchToggling = false;
+		}
+	}
+
+	async function handleRebuildSearch() {
+		searchToggling = true;
+		try {
+			await rebuildSearchIndex();
+			searchIndexingStatus = getIndexingStatus();
+		} finally {
+			searchToggling = false;
+		}
+	}
 
 	$effect(() => {
 		void getCanvasCredentials().then((credentials) => {
@@ -276,6 +342,17 @@
 		<Separator class="my-6" />
 
 		<section class="space-y-4">
+			<div class="space-y-1">
+				<h3 class="flex items-center gap-2 text-sm font-semibold">
+					<span
+						class="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground"
+					>
+						<HugeiconsIcon icon={Link01Icon} class="size-4" />
+					</span>
+					Connections
+				</h3>
+			</div>
+
 			{#await user}
 				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 					<div class="min-w-0 space-y-1">
@@ -429,6 +506,89 @@
 					</Dialog.Footer>
 				</Dialog.Content>
 			</Dialog.Root>
+		</section>
+
+		<Separator class="my-6" />
+
+		<section class="space-y-4">
+			<div class="space-y-1">
+				<h3 class="flex items-center gap-2 text-sm font-semibold">
+					<span
+						class="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground"
+					>
+						<HugeiconsIcon icon={Search01Icon} class="size-4" />
+					</span>
+					Search
+				</h3>
+				<p class="text-xs leading-relaxed text-muted-foreground">
+					Search courses and supported Canvas content from the command palette (<kbd
+						class="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">/</kbd
+					>
+					or <kbd class="rounded border bg-muted px-1 py-0.5 font-mono text-[10px]">⌘K</kbd>) with a
+					local index.
+				</p>
+			</div>
+
+			<div
+				class="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+			>
+				<div class="min-w-0 space-y-1">
+					<p class="text-sm font-medium">Enhanced search (Orama)</p>
+					<p class="text-xs text-muted-foreground">
+						{#if searchLoading}
+							Loading preference…
+						{:else if searchSettingsError}
+							<span class="text-destructive">{searchSettingsError}</span>
+						{:else if searchIndexingStatus.status === 'indexing'}
+							{searchIndexingStatus.message || 'Indexing…'}
+						{:else if searchIndexingStatus.status === 'ready' && enhancedSearchEnabled}
+							Ready — {searchIndexingStatus.count} items indexed
+						{:else if searchIndexingStatus.status === 'partial' && enhancedSearchEnabled}
+							<span class="text-amber-600 dark:text-amber-400">
+								{searchIndexingStatus.message}
+							</span>
+						{:else if searchIndexingStatus.status === 'error'}
+							Error: {searchIndexingStatus.message}
+						{:else if enhancedSearchEnabled}
+							Enabled — index will build on next search.
+						{:else}
+							Uses simple course filtering. Enable to search supported Canvas content.
+						{/if}
+					</p>
+				</div>
+				<div class="flex shrink-0 items-center gap-2">
+					{#if enhancedSearchEnabled}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={handleRebuildSearch}
+							disabled={searchToggling || searchIndexingStatus.status === 'indexing'}
+						>
+							<HugeiconsIcon
+								icon={RefreshIcon}
+								class={searchIndexingStatus.status === 'indexing' ? 'animate-spin' : ''}
+							/>
+							{searchIndexingStatus.status === 'indexing' ? 'Indexing…' : 'Rebuild index'}
+						</Button>
+					{/if}
+					<button
+						role="switch"
+						aria-checked={enhancedSearchEnabled}
+						aria-label="Toggle enhanced search"
+						disabled={searchLoading || searchToggling}
+						onclick={handleToggleEnhancedSearch}
+						class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 {enhancedSearchEnabled
+							? 'bg-primary'
+							: 'bg-input'}"
+					>
+						<span
+							class="pointer-events-none inline-block size-5 transform rounded-full bg-background shadow ring-0 transition-transform {enhancedSearchEnabled
+								? 'translate-x-5'
+								: 'translate-x-0'}"
+						></span>
+					</button>
+				</div>
+			</div>
 		</section>
 	</div>
 </main>

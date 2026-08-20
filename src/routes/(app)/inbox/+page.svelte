@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { Input } from '$lib/components/ui/input';
 	import * as Item from '$lib/components/ui/item';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -163,6 +164,13 @@
 					return bt - at;
 				});
 				convs = mapped;
+				const requestedConversation = page.url.searchParams.get('conversation');
+				if (
+					requestedConversation &&
+					mapped.some((conversation) => conversation.id === requestedConversation)
+				) {
+					expanded.add(requestedConversation);
+				}
 				loading = false;
 			})
 			.catch(() => {

@@ -5,7 +5,7 @@
 	import { Search01Icon, Cancel01Icon, Share01Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let collaborations = $state<Awaited<ReturnType<typeof getCourseCollaborations>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);

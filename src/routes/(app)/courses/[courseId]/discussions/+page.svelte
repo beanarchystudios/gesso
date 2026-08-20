@@ -5,7 +5,7 @@
 	import { Search01Icon, Cancel01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let discussions = $state<Awaited<ReturnType<typeof getCourseDiscussions>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);

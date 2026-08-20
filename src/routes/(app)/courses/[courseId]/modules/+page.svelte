@@ -24,7 +24,7 @@
 	type RawModule = Awaited<ReturnType<typeof getCourseModules>>[number];
 	type RawItem = RawModule['items'][number];
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let expanded = new SvelteSet<number>();
 	let modules = $state<RawModule[] | null>(null);
 	let loadError = $state<string | null>(null);

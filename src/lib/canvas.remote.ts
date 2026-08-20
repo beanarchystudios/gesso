@@ -912,13 +912,23 @@ export const getCourseAnnouncements = query('unchecked', async (courseId: string
 	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
 	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
 	const headers = { Authorization: `Bearer ${apiKey}` };
-	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
-	url.searchParams.set('only_announcements', 'true');
-	url.searchParams.set('per_page', '100');
-	const res = await fetch(url, { headers });
-	if (!res.ok) error(res.status, 'Unable to load announcements');
-	const data: CanvasAnnouncementTopic[] = await res.json();
-	return (Array.isArray(data) ? data : []).map((a) => ({
+	const data: CanvasAnnouncementTopic[] = [];
+	let page = 1;
+	while (true) {
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+		url.searchParams.set('only_announcements', 'true');
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		const res: Response = await fetch(url, { headers });
+		if (!res.ok) error(res.status, 'Unable to load announcements');
+		const batch: CanvasAnnouncementTopic[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		data.push(...batch);
+		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
+		if (batch.length === 0 || page >= 20) break;
+		page += 1;
+	}
+	return data.map((a) => ({
 		id: a.id,
 		title: a.title ?? '(No subject)',
 		message: a.message ?? '',
@@ -938,15 +948,27 @@ export const getCourseGrades = query('unchecked', async (courseId: string) => {
 	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
 	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
 
-	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/students/submissions`);
-	url.searchParams.append('student_ids[]', 'self');
-	url.searchParams.append('include[]', 'assignment');
-	url.searchParams.set('per_page', '100');
-	const res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-	if (!res.ok) error(res.status, 'Unable to load grades');
-	const submissions: CanvasSubmission[] = await res.json();
+	const submissions: CanvasSubmission[] = [];
+	let page = 1;
+	while (true) {
+		const url: URL = new URL(
+			`${instanceUrl}/api/v1/courses/${parsedCourseId}/students/submissions`
+		);
+		url.searchParams.append('student_ids[]', 'self');
+		url.searchParams.append('include[]', 'assignment');
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+		if (!res.ok) error(res.status, 'Unable to load grades');
+		const batch: CanvasSubmission[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		submissions.push(...batch);
+		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
+		if (batch.length === 0 || page >= 20) break;
+		page += 1;
+	}
 
-	return (Array.isArray(submissions) ? submissions : [])
+	return submissions
 		.filter((submission) => submission.assignment)
 		.map((submission) => ({
 			id: submission.id,
@@ -1015,12 +1037,22 @@ export const getCourseDiscussions = query('unchecked', async (courseId: string) 
 	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
 	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
 	const headers = { Authorization: `Bearer ${apiKey}` };
-	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
-	url.searchParams.set('per_page', '100');
-	const res = await fetch(url, { headers });
-	if (!res.ok) error(res.status, 'Unable to load discussions');
-	const data: CanvasDiscussion[] = await res.json();
-	return (Array.isArray(data) ? data : [])
+	const data: CanvasDiscussion[] = [];
+	let page = 1;
+	while (true) {
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		const res: Response = await fetch(url, { headers });
+		if (!res.ok) error(res.status, 'Unable to load discussions');
+		const batch: CanvasDiscussion[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		data.push(...batch);
+		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
+		if (batch.length === 0 || page >= 20) break;
+		page += 1;
+	}
+	return data
 		.filter((d) => !d.is_announcement as unknown as boolean)
 		.map((d) => ({
 			id: d.id,
@@ -1125,6 +1157,42 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 	}));
 });
 
+export const getCoursePageBodies = query(
+	'unchecked',
+	async (args: { courseId: string; pageUrls: string[] }) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		const parsedCourseId = Number(args.courseId);
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
+			error(400, 'Invalid course ID');
+		if (args.pageUrls.length > 1000) error(400, 'Too many page URLs');
+
+		const headers = { Authorization: `Bearer ${apiKey}` };
+		const bodies: Record<string, string> = {};
+		let failed = 0;
+		for (let index = 0; index < args.pageUrls.length; index += 10) {
+			const batch = args.pageUrls.slice(index, index + 10);
+			const results = await Promise.allSettled(
+				batch.map(async (pageUrl) => {
+					const response = await fetch(
+						`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages/${encodeURIComponent(pageUrl)}`,
+						{ headers }
+					);
+					if (!response.ok) throw new Error(`Unable to load page ${pageUrl}`);
+					const page: CanvasPage = await response.json();
+					return { pageUrl, body: page.body ?? '' };
+				})
+			);
+			for (const result of results) {
+				if (result.status === 'fulfilled') bodies[result.value.pageUrl] = result.value.body;
+				else failed += 1;
+			}
+		}
+		return { bodies, failed };
+	}
+);
+
 export const getCourseAssignment = query(
 	'unchecked',
 	async (args: { courseId: string; assignmentId: string }) => {
@@ -1177,15 +1245,25 @@ export const getCourseCollaborations = query('unchecked', async (courseId: strin
 	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
 	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
 	const headers = { Authorization: `Bearer ${apiKey}` };
-	const res = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}/collaborations`, {
-		headers
-	});
-	if (!res.ok) {
-		if (res.status === 404 || res.status === 403) return [];
-		error(res.status, 'Unable to load collaborations');
+	const data: CanvasCollaboration[] = [];
+	let page = 1;
+	while (true) {
+		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/collaborations`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		const res: Response = await fetch(url, { headers });
+		if (!res.ok) {
+			if (res.status === 404 || res.status === 403) return [];
+			error(res.status, 'Unable to load collaborations');
+		}
+		const batch: CanvasCollaboration[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		data.push(...batch);
+		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
+		if (batch.length === 0 || page >= 20) break;
+		page += 1;
 	}
-	const data: CanvasCollaboration[] = await res.json();
-	return (Array.isArray(data) ? data : []).map((c) => ({
+	return data.map((c) => ({
 		id: c.id,
 		title: c.title ?? 'Untitled',
 		type: c.collaboration_type ?? 'unknown',
