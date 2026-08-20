@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { clearCanvasCache, getCanvasUser } from '$lib/canvas';
+	import {
+		getCanvasCredentials,
+		removeCanvasCredentials,
+		saveCanvasCredentials
+	} from '$lib/canvas-credentials';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
@@ -20,6 +26,16 @@
 	let cleared = $state(false);
 	let emailCopied = $state(false);
 	let emailHovered = $state(false);
+	let instanceUrl = $state('');
+	let apiKey = $state('');
+	let connectionMessage = $state('');
+	let savingConnection = $state(false);
+
+	$effect(() => {
+		void getCanvasCredentials().then((credentials) => {
+			if (credentials) instanceUrl = credentials.instanceUrl;
+		});
+	});
 
 	function getScrambled(email: string | null): string {
 		if (!email) return '—';
@@ -61,6 +77,28 @@
 			clearing = false;
 		}
 	}
+
+	async function handleSaveConnection() {
+		savingConnection = true;
+		connectionMessage = '';
+		try {
+			const current = await getCanvasCredentials();
+			await saveCanvasCredentials(instanceUrl, apiKey || current?.apiKey || '');
+			await clearCanvasCache();
+			apiKey = '';
+			connectionMessage = 'Connection saved. Reloading…';
+			location.reload();
+		} catch (cause) {
+			connectionMessage = cause instanceof Error ? cause.message : 'Could not save the connection.';
+			savingConnection = false;
+		}
+	}
+
+	async function handleRemoveConnection() {
+		await removeCanvasCredentials();
+		await clearCanvasCache();
+		location.reload();
+	}
 </script>
 
 <svelte:head>
@@ -72,6 +110,40 @@
 		<header>
 			<h1 class="text-2xl font-semibold tracking-tight">Account</h1>
 		</header>
+
+		<Separator class="my-6" />
+
+		<section class="mb-8 space-y-4">
+			<div class="space-y-1">
+				<h2 class="text-sm font-semibold">Canvas connection</h2>
+				<p class="text-xs text-muted-foreground">
+					Your URL and token are stored in IndexedDB on this browser.
+				</p>
+			</div>
+			<div class="grid gap-3 sm:grid-cols-2">
+				<label class="space-y-1.5 text-xs font-medium">
+					Canvas URL
+					<Input bind:value={instanceUrl} type="url" autocomplete="url" />
+				</label>
+				<label class="space-y-1.5 text-xs font-medium">
+					New access token
+					<Input
+						bind:value={apiKey}
+						type="password"
+						placeholder="Leave blank to keep the current token"
+						autocomplete="off"
+					/>
+				</label>
+			</div>
+			<div class="flex flex-wrap items-center gap-2">
+				<Button size="sm" onclick={handleSaveConnection} disabled={savingConnection}
+					>{savingConnection ? 'Saving…' : 'Save connection'}</Button
+				>
+				<Button size="sm" variant="outline" onclick={handleRemoveConnection}>Disconnect</Button>
+				{#if connectionMessage}<span class="text-xs text-muted-foreground">{connectionMessage}</span
+					>{/if}
+			</div>
+		</section>
 
 		<Separator class="my-6" />
 

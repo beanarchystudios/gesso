@@ -1,13 +1,16 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { getCanvasUser, getCourseTabs, getFavoriteCourses } from '$lib/canvas';
+	import { clearCanvasCache, getCanvasUser, getCourseTabs, getFavoriteCourses } from '$lib/canvas';
+	import { removeCanvasCredentials } from '$lib/canvas-credentials';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import { getCourseTabShortcut } from '$lib/course-shortcuts';
 	import {
 		Calendar03Icon,
 		DashboardSquare02Icon,
+		Logout01Icon,
 		Mailbox01Icon,
 		PaintBoardIcon,
 		Task01Icon
@@ -15,6 +18,7 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	const user = getCanvasUser();
+	let signingOut = $state(false);
 	const courseId = $derived(page.params.courseId);
 	const courseTabs = $derived(courseId ? getCourseTabs(courseId) : null);
 	const courseName = $derived(
@@ -32,6 +36,17 @@
 			.map((part) => part[0])
 			.join('')
 			.toUpperCase();
+	}
+
+	async function signOut() {
+		signingOut = true;
+		try {
+			await removeCanvasCredentials();
+			await clearCanvasCache();
+			await goto(resolve('/auth'), { replaceState: true });
+		} finally {
+			signingOut = false;
+		}
 	}
 
 	const LOADING_TAB_ROWS = [1, 2, 3, 4, 5];
@@ -234,7 +249,18 @@
 				{/snippet}
 			</Sidebar.MenuButton>
 		{:catch}
-			<p class="truncate px-2 py-1 text-sm font-medium">Canvas user unavailable</p>
+			<div class="space-y-1">
+				<a
+					href={resolve('/(app)/account')}
+					class="block truncate px-2 py-1 text-sm font-medium hover:underline"
+				>
+					Canvas user unavailable
+				</a>
+				<Sidebar.MenuButton onclick={signOut} aria-disabled={signingOut}>
+					<HugeiconsIcon icon={Logout01Icon} />
+					{signingOut ? 'Signing out…' : 'Sign out'}
+				</Sidebar.MenuButton>
+			</div>
 		{/await}
 	</Sidebar.Footer>
 </Sidebar.Root>
