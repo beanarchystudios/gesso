@@ -3,6 +3,7 @@
 	import { getFavoriteCourses } from '$lib/canvas';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import AppSidebar from './app-sidebar.svelte';
+	import CourseHotkeys from './course-hotkeys.svelte';
 	import GlobalCommand from './global-command.svelte';
 
 	const { children } = $props();
@@ -11,6 +12,7 @@
 </script>
 
 <GlobalCommand />
+<CourseHotkeys />
 <Sidebar.Provider>
 	<AppSidebar />
 	{#if courses}

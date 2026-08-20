@@ -4,6 +4,7 @@
 	import { getCanvasUser, getCourseTabs, getFavoriteCourses } from '$lib/canvas';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
+	import { getCourseTabShortcut } from '$lib/course-shortcuts';
 	import {
 		Calendar03Icon,
 		DashboardSquare02Icon,
@@ -179,10 +180,21 @@
 								<Sidebar.MenuItem>
 									<Sidebar.MenuButton isActive={isTabActive(tab, activeCourseTabId)}>
 										{#snippet child({ props })}
-											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-											<a {...props} href={getTabHref(tab)} title={tab.label}>
-												{tab.label}
+											<!-- eslint-disable svelte/no-navigation-without-resolve -->
+											<a
+												{...props}
+												href={getTabHref(tab)}
+												title={tab.label}
+												aria-keyshortcuts={getCourseTabShortcut(tab)}
+											>
+												<span class="truncate">{tab.label}</span>
+												{#if getCourseTabShortcut(tab)}
+													<kbd class="ml-auto font-sans text-xs text-sidebar-foreground/50">
+														{getCourseTabShortcut(tab)}
+													</kbd>
+												{/if}
 											</a>
+											<!-- eslint-enable svelte/no-navigation-without-resolve -->
 										{/snippet}
 									</Sidebar.MenuButton>
 								</Sidebar.MenuItem>
