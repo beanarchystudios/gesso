@@ -3,12 +3,14 @@
 	import { getFavoriteCourses } from '$lib/canvas';
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import AppSidebar from './app-sidebar.svelte';
+	import GlobalCommand from './global-command.svelte';
 
 	const { children } = $props();
 	const courseId = $derived(page.params.courseId);
 	const courses = $derived(courseId ? getFavoriteCourses() : null);
 </script>
 
+<GlobalCommand />
 <Sidebar.Provider>
 	<AppSidebar />
 	{#if courses}

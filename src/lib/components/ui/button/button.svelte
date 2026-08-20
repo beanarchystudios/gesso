@@ -49,6 +49,7 @@
 </script>
 
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve -- reusable button accepts resolved and external URLs */
 	let {
 		class: className,
 		variant = 'default',
@@ -62,8 +63,6 @@
 	}: ButtonProps = $props();
 </script>
 
-<!-- A reusable button may receive internal or external consumer-provided URLs. -->
-<!-- eslint-disable svelte/no-navigation-without-resolve -->
 {#if href}
 	<a
 		bind:this={ref}
@@ -89,4 +88,3 @@
 		{@render children?.()}
 	</button>
 {/if}
-<!-- eslint-enable svelte/no-navigation-without-resolve -->

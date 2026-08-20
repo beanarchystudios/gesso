@@ -1,10 +1,13 @@
 import { browser } from '$app/environment';
 import Dexie, { type EntityTable } from 'dexie';
 import {
+	bulkUpdateConversations as fetchBulkUpdateConversations,
 	getCalendarEvents as fetchCalendarEvents,
 	getCanvasUser as fetchCanvasUser,
 	getConversation as fetchConversation,
 	getConversations as fetchConversations,
+	replyToConversation as fetchReplyToConversation,
+	updateConversation as fetchUpdateConversation,
 	getCourseAnnouncements as fetchCourseAnnouncements,
 	getCourseAssignment as fetchCourseAssignment,
 	getCourseAssignments as fetchCourseAssignments,
@@ -156,6 +159,51 @@ export function getConversations() {
 
 export function getConversation(conversationId: string) {
 	return cached(`conversation:${conversationId}`, () => fetchConversation(conversationId));
+}
+
+export function replyToConversation(input: { conversationId: string; body: string }) {
+	return fetchReplyToConversation(input).then(async (res) => {
+		try {
+			await db?.responses.delete(`${CACHE_VERSION}:conversation:${input.conversationId}`);
+			await db?.responses.delete(`${CACHE_VERSION}:conversations`);
+		} catch {
+			// ignore
+		}
+		return res;
+	});
+}
+
+export function updateConversation(input: {
+	conversationId: string;
+	starred?: boolean;
+	workflowState?: 'read' | 'unread' | 'archived';
+}) {
+	return fetchUpdateConversation(input).then(async (res) => {
+		try {
+			await db?.responses.delete(`${CACHE_VERSION}:conversation:${input.conversationId}`);
+			await db?.responses.delete(`${CACHE_VERSION}:conversations`);
+		} catch {
+			// ignore
+		}
+		return res;
+	});
+}
+
+export function bulkUpdateConversations(input: {
+	conversationIds: string[];
+	workflowState: 'read' | 'unread' | 'archived';
+}) {
+	return fetchBulkUpdateConversations(input).then(async (res) => {
+		try {
+			await db?.responses.delete(`${CACHE_VERSION}:conversations`);
+			for (const id of input.conversationIds) {
+				await db?.responses.delete(`${CACHE_VERSION}:conversation:${id}`);
+			}
+		} catch {
+			// ignore
+		}
+		return res;
+	});
 }
 
 export function getCalendarEvents(opts: { start: string; end: string }) {

@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { query } from '$app/server';
+import { command, query } from '$app/server';
 import { error } from '@sveltejs/kit';
 
 interface CanvasProfile {
@@ -412,6 +412,7 @@ export const getConversations = query(async () => {
 			avatarUrl: p.avatar_url ?? null
 		}));
 		const color = conv.context_code ? (colors.custom_colors?.[conv.context_code] ?? null) : null;
+		const properties = conv.properties ?? [];
 		return {
 			id: conv.id,
 			subject: conv.subject ?? '(No subject)',
@@ -425,11 +426,116 @@ export const getConversations = query(async () => {
 			contextCode: conv.context_code ?? null,
 			contextName: conv.context_name ?? null,
 			color,
-			properties: conv.properties ?? [],
+			properties,
+			hasAttachment: properties.includes('attachments'),
 			audience: conv.audience ?? []
 		};
 	});
 });
+
+export const replyToConversation = command(
+	'unchecked',
+	async (input: { conversationId: string; body: string }) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		const parsedId = Number(input.conversationId);
+		if (!Number.isSafeInteger(parsedId) || parsedId <= 0) error(400, 'Invalid conversation ID');
+		const trimmed = input.body?.trim();
+		if (!trimmed) error(400, 'Message body is required');
+		if (trimmed.length > 20000) error(400, 'Message is too long');
+		const url = `${instanceUrl}/api/v1/conversations/${parsedId}/add_message`;
+		const res = await fetch(url, {
+			method: 'POST',
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': 'application/json',
+				Accept: 'application/json'
+			},
+			body: JSON.stringify({ body: trimmed })
+		});
+		if (!res.ok) {
+			const text = await res.text().catch(() => '');
+			error(res.status, text || 'Unable to send reply');
+		}
+		try {
+			return (await res.json()) as unknown;
+		} catch {
+			return { ok: true };
+		}
+	}
+);
+
+export const updateConversation = command(
+	'unchecked',
+	async (input: {
+		conversationId: string;
+		starred?: boolean;
+		workflowState?: 'read' | 'unread' | 'archived';
+	}) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		const parsedId = Number(input.conversationId);
+		if (!Number.isSafeInteger(parsedId) || parsedId <= 0) error(400, 'Invalid conversation ID');
+		const params = new URLSearchParams();
+		if (typeof input.starred === 'boolean')
+			params.set('conversation[starred]', String(input.starred));
+		if (input.workflowState) params.set('conversation[workflow_state]', input.workflowState);
+		if ([...params].length === 0) error(400, 'No updates provided');
+		const res = await fetch(`${instanceUrl}/api/v1/conversations/${parsedId}`, {
+			method: 'PUT',
+			headers: {
+				Authorization: `Bearer ${apiKey}`,
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Accept: 'application/json'
+			},
+			body: params.toString()
+		});
+		if (!res.ok) error(res.status, 'Unable to update conversation');
+		try {
+			return (await res.json()) as unknown;
+		} catch {
+			return { ok: true };
+		}
+	}
+);
+
+export const bulkUpdateConversations = command(
+	'unchecked',
+	async (input: { conversationIds: string[]; workflowState: 'read' | 'unread' | 'archived' }) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		if (!Array.isArray(input.conversationIds) || input.conversationIds.length === 0)
+			error(400, 'No conversation IDs provided');
+		if (input.conversationIds.length > 200) error(400, 'Too many conversations');
+		const headers = {
+			Authorization: `Bearer ${apiKey}`,
+			'Content-Type': 'application/x-www-form-urlencoded',
+			Accept: 'application/json'
+		};
+		let last: unknown = null;
+		for (const rawId of input.conversationIds) {
+			const parsedId = Number(rawId);
+			if (!Number.isSafeInteger(parsedId) || parsedId <= 0) continue;
+			const params = new URLSearchParams();
+			params.set('conversation[workflow_state]', input.workflowState);
+			const res = await fetch(`${instanceUrl}/api/v1/conversations/${parsedId}`, {
+				method: 'PUT',
+				headers,
+				body: params.toString()
+			});
+			if (!res.ok) error(res.status, 'Unable to update conversations');
+			try {
+				last = await res.json();
+			} catch {
+				last = { ok: true };
+			}
+		}
+		return last;
+	}
+);
 
 export const getConversation = query('unchecked', async (conversationId: string) => {
 	const apiKey = env.CANVAS_API_KEY;

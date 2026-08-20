@@ -158,7 +158,9 @@
 	}
 
 	function eventToken(ev: CalendarItem): string {
-		// only tokens from layout.css — cycle through chart-1..5 deterministically per course/context
+		// assignments (and any course event with a Canvas color) should use the course color
+		if (ev.color) return ev.color;
+		// fallback: cycle through chart-1..5 deterministically per course/context
 		const key = ev.courseId ?? ev.contextName ?? ev.title ?? ev.type;
 		const hash = hashString(String(key));
 		const idx = (hash % 5) + 1;
