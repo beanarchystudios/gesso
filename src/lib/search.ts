@@ -621,11 +621,8 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 		}
 
 		currentDb = db;
-		status = failures.length === 0 ? 'ready' : 'partial';
-		statusMessage =
-			failures.length === 0
-				? `Indexed ${docs.length} items`
-				: `Indexed ${docs.length} items; unavailable: ${failures.slice(0, 3).join(', ')}${failures.length > 3 ? ` and ${failures.length - 3} more` : ''}`;
+		status = 'ready';
+		statusMessage = '';
 		documentCount = docs.length;
 		notifyStatus();
 		return db;

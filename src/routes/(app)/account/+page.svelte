@@ -17,6 +17,7 @@
 		AlertCircleIcon,
 		Edit02Icon,
 		ExternalLinkIcon,
+		InformationCircleIcon,
 		Link01Icon,
 		Mail01Icon,
 		RefreshIcon,
@@ -49,7 +50,6 @@
 	let enhancedSearchEnabled = $state(false);
 	let searchLoading = $state(true);
 	let searchToggling = $state(false);
-	let searchSettingsError = $state<string | null>(null);
 	let searchIndexingStatus = $state(getIndexingStatus());
 
 	onMount(() => {
@@ -67,7 +67,6 @@
 	async function handleToggleEnhancedSearch() {
 		const next = !enhancedSearchEnabled;
 		searchToggling = true;
-		searchSettingsError = null;
 		try {
 			await setEnhancedSearchEnabled(next);
 			enhancedSearchEnabled = next;
@@ -85,8 +84,7 @@
 				searchIndexingStatus = getIndexingStatus();
 			}
 		} catch (error) {
-			searchSettingsError =
-				error instanceof Error ? error.message : 'Could not save the search setting';
+			console.error(error);
 		} finally {
 			searchToggling = false;
 		}
@@ -529,47 +527,74 @@
 				</p>
 			</div>
 
-			<div
-				class="flex flex-col gap-4 rounded-xl border border-border/60 bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
-			>
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
 				<div class="min-w-0 space-y-1">
-					<p class="text-sm font-medium">Enhanced search (Orama)</p>
-					<p class="text-xs text-muted-foreground">
-						{#if searchLoading}
-							Loading preference…
-						{:else if searchSettingsError}
-							<span class="text-destructive">{searchSettingsError}</span>
-						{:else if searchIndexingStatus.status === 'indexing'}
-							{searchIndexingStatus.message || 'Indexing…'}
-						{:else if searchIndexingStatus.status === 'ready' && enhancedSearchEnabled}
-							Ready — {searchIndexingStatus.count} items indexed
-						{:else if searchIndexingStatus.status === 'partial' && enhancedSearchEnabled}
-							<span class="text-amber-600 dark:text-amber-400">
+					<div class="flex items-center gap-1">
+						<p class="text-xs font-medium">Enhanced search</p>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="ghost"
+										size="icon-xs"
+										class="size-6 text-muted-foreground"
+										aria-label="About enhanced search"
+									>
+										<HugeiconsIcon icon={InformationCircleIcon} class="size-3.5" />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content class="max-w-xs">
+								Search inside your courses, not just course names.
+							</Tooltip.Content>
+						</Tooltip.Root>
+					</div>
+					{#if enhancedSearchEnabled && searchIndexingStatus.message}
+						<p
+							class="text-[11px] leading-relaxed {searchIndexingStatus.status === 'error'
+								? 'text-destructive'
+								: searchIndexingStatus.status === 'partial'
+									? 'text-amber-600 dark:text-amber-500'
+									: 'text-muted-foreground/80'}"
+						>
+							{#if searchIndexingStatus.status === 'indexing'}
+								<span class="inline-flex items-center gap-1.5">
+									<span class="size-1.5 animate-pulse rounded-full bg-primary"></span>
+									{searchIndexingStatus.message}
+								</span>
+							{:else}
 								{searchIndexingStatus.message}
-							</span>
-						{:else if searchIndexingStatus.status === 'error'}
-							Error: {searchIndexingStatus.message}
-						{:else if enhancedSearchEnabled}
-							Enabled — index will build on next search.
-						{:else}
-							Uses simple course filtering. Enable to search supported Canvas content.
-						{/if}
-					</p>
+							{/if}
+						</p>
+					{/if}
 				</div>
 				<div class="flex shrink-0 items-center gap-2">
 					{#if enhancedSearchEnabled}
-						<Button
-							variant="outline"
-							size="sm"
-							onclick={handleRebuildSearch}
-							disabled={searchToggling || searchIndexingStatus.status === 'indexing'}
-						>
-							<HugeiconsIcon
-								icon={RefreshIcon}
-								class={searchIndexingStatus.status === 'indexing' ? 'animate-spin' : ''}
-							/>
-							{searchIndexingStatus.status === 'indexing' ? 'Indexing…' : 'Rebuild index'}
-						</Button>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="ghost"
+										size="icon-sm"
+										onclick={handleRebuildSearch}
+										disabled={searchToggling || searchIndexingStatus.status === 'indexing'}
+										aria-label={searchIndexingStatus.status === 'indexing'
+											? 'Indexing…'
+											: 'Rebuild index'}
+									>
+										<HugeiconsIcon
+											icon={RefreshIcon}
+											class={searchIndexingStatus.status === 'indexing' ? 'animate-spin' : ''}
+										/>
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>
+								{searchIndexingStatus.status === 'indexing' ? 'Indexing…' : 'Rebuild index'}
+							</Tooltip.Content>
+						</Tooltip.Root>
 					{/if}
 					<button
 						role="switch"
