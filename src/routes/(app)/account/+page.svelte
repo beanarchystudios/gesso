@@ -7,11 +7,15 @@
 	} from '$lib/canvas-credentials';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		AlertCircleIcon,
+		Edit02Icon,
 		ExternalLinkIcon,
 		Mail01Icon,
 		RefreshIcon,
@@ -30,6 +34,7 @@
 	let apiKey = $state('');
 	let connectionMessage = $state('');
 	let savingConnection = $state(false);
+	let editingConnection = $state(false);
 
 	$effect(() => {
 		void getCanvasCredentials().then((credentials) => {
@@ -110,40 +115,6 @@
 		<header>
 			<h1 class="text-2xl font-semibold tracking-tight">Account</h1>
 		</header>
-
-		<Separator class="my-6" />
-
-		<section class="mb-8 space-y-4">
-			<div class="space-y-1">
-				<h2 class="text-sm font-semibold">Canvas connection</h2>
-				<p class="text-xs text-muted-foreground">
-					Your URL and token are stored in IndexedDB on this browser.
-				</p>
-			</div>
-			<div class="grid gap-3 sm:grid-cols-2">
-				<label class="space-y-1.5 text-xs font-medium">
-					Canvas URL
-					<Input bind:value={instanceUrl} type="url" autocomplete="url" />
-				</label>
-				<label class="space-y-1.5 text-xs font-medium">
-					New access token
-					<Input
-						bind:value={apiKey}
-						type="password"
-						placeholder="Leave blank to keep the current token"
-						autocomplete="off"
-					/>
-				</label>
-			</div>
-			<div class="flex flex-wrap items-center gap-2">
-				<Button size="sm" onclick={handleSaveConnection} disabled={savingConnection}
-					>{savingConnection ? 'Saving…' : 'Save connection'}</Button
-				>
-				<Button size="sm" variant="outline" onclick={handleRemoveConnection}>Disconnect</Button>
-				{#if connectionMessage}<span class="text-xs text-muted-foreground">{connectionMessage}</span
-					>{/if}
-			</div>
-		</section>
 
 		<Separator class="my-6" />
 
@@ -280,39 +251,6 @@
 					</div>
 				</div>
 			</section>
-
-			<!-- Canvas connection -->
-			<section class="mt-10">
-				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-					<div class="min-w-0 space-y-1">
-						<p class="text-sm font-medium">Connected to Canvas</p>
-						<p class="truncate text-xs text-muted-foreground" title={user.profileUrl}>
-							{user.profileUrl}
-						</p>
-					</div>
-					<div class="flex shrink-0 flex-wrap gap-2">
-						<Button
-							href={user.profileUrl}
-							target="_blank"
-							rel="noreferrer"
-							variant="outline"
-							size="sm"
-						>
-							<HugeiconsIcon icon={ExternalLinkIcon} />
-							View profile
-						</Button>
-						<Button
-							variant={cleared ? 'secondary' : 'outline'}
-							size="sm"
-							onclick={handleClearCache}
-							disabled={clearing}
-						>
-							<HugeiconsIcon icon={RefreshIcon} class={clearing ? 'animate-spin' : ''} />
-							{clearing ? 'Clearing…' : cleared ? 'Cache cleared' : 'Clear local cache'}
-						</Button>
-					</div>
-				</div>
-			</section>
 		{:catch err}
 			<div class="mt-8 space-y-4 py-6">
 				<div class="flex items-center gap-2 text-sm font-semibold text-destructive">
@@ -334,5 +272,163 @@
 				</div>
 			</div>
 		{/await}
+
+		<Separator class="my-6" />
+
+		<section class="space-y-4">
+			{#await user}
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div class="min-w-0 space-y-1">
+						<Skeleton class="h-3 w-28" />
+						<Skeleton class="h-3 w-48" />
+					</div>
+					<div class="flex shrink-0 gap-2">
+						<Skeleton class="size-7 rounded-md" />
+						<Skeleton class="size-7 rounded-md" />
+						<Skeleton class="size-7 rounded-md" />
+					</div>
+				</div>
+			{:then canvasUser}
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div class="min-w-0 space-y-1">
+						<p class="text-xs font-medium">Connected to Canvas</p>
+						<p class="truncate text-xs text-muted-foreground" title={canvasUser.profileUrl}>
+							{canvasUser.profileUrl}
+						</p>
+					</div>
+					<div class="flex shrink-0 flex-wrap gap-2">
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										href={canvasUser.profileUrl}
+										target="_blank"
+										rel="noreferrer"
+										variant="outline"
+										size="icon-sm"
+										aria-label="View profile"
+										class="cursor-pointer"
+										{...props}
+									>
+										<HugeiconsIcon icon={ExternalLinkIcon} />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>View profile</Tooltip.Content>
+						</Tooltip.Root>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										size="icon-sm"
+										onclick={handleClearCache}
+										disabled={clearing}
+										aria-label={clearing
+											? 'Clearing…'
+											: cleared
+												? 'Cache cleared'
+												: 'Clear local cache'}
+										class="cursor-pointer"
+										{...props}
+									>
+										<HugeiconsIcon icon={RefreshIcon} class={clearing ? 'animate-spin' : ''} />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content
+								>{clearing
+									? 'Clearing…'
+									: cleared
+										? 'Cache cleared'
+										: 'Clear local cache'}</Tooltip.Content
+							>
+						</Tooltip.Root>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="outline"
+										size="icon-sm"
+										aria-label="Change connection"
+										class="cursor-pointer"
+										onclick={() => (editingConnection = true)}
+									>
+										<HugeiconsIcon icon={Edit02Icon} />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>Change connection</Tooltip.Content>
+						</Tooltip.Root>
+					</div>
+				</div>
+			{:catch}
+				<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+					<div class="min-w-0 space-y-1">
+						<p class="text-xs font-medium">Not connected to Canvas</p>
+						<p class="truncate text-xs text-muted-foreground">Check your Canvas URL and token.</p>
+					</div>
+					<div class="flex shrink-0 flex-wrap gap-2">
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="outline"
+										size="icon-sm"
+										aria-label="Change connection"
+										class="cursor-pointer"
+										onclick={() => (editingConnection = true)}
+									>
+										<HugeiconsIcon icon={Edit02Icon} />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>Change connection</Tooltip.Content>
+						</Tooltip.Root>
+					</div>
+				</div>
+			{/await}
+
+			<Dialog.Root bind:open={editingConnection}>
+				<Dialog.Content class="sm:max-w-md">
+					<Dialog.Header>
+						<Dialog.Title>Change connection</Dialog.Title>
+						<Dialog.Description>
+							Update your Canvas URL and access token. Stored in IndexedDB on this browser.
+						</Dialog.Description>
+					</Dialog.Header>
+					<div class="grid gap-3">
+						<div class="grid gap-2">
+							<Label for="canvas-url" class="text-xs font-medium">Canvas URL</Label>
+							<Input id="canvas-url" bind:value={instanceUrl} type="url" autocomplete="url" />
+						</div>
+						<div class="grid gap-2">
+							<Label for="canvas-token" class="text-xs font-medium">New access token</Label>
+							<Input
+								id="canvas-token"
+								bind:value={apiKey}
+								type="password"
+								placeholder="Leave blank to keep the current token"
+								autocomplete="off"
+							/>
+						</div>
+					</div>
+					{#if connectionMessage}
+						<p class="text-xs text-muted-foreground">{connectionMessage}</p>
+					{/if}
+					<Dialog.Footer>
+						<Button variant="outline" size="sm" onclick={() => (editingConnection = false)}
+							>Cancel</Button
+						>
+						<Button variant="outline" size="sm" onclick={handleRemoveConnection}>Disconnect</Button>
+						<Button size="sm" onclick={handleSaveConnection} disabled={savingConnection}
+							>{savingConnection ? 'Saving…' : 'Save connection'}</Button
+						>
+					</Dialog.Footer>
+				</Dialog.Content>
+			</Dialog.Root>
+		</section>
 	</div>
 </main>
