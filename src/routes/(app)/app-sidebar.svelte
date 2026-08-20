@@ -12,6 +12,7 @@
 		DashboardSquare02Icon,
 		Logout01Icon,
 		Mailbox01Icon,
+		Notebook01Icon,
 		PaintBoardIcon,
 		Task01Icon
 	} from '@hugeicons/core-free-icons';
@@ -130,7 +131,8 @@
 		{ label: 'Dashboard', href: '/(app)/dashboard', icon: DashboardSquare02Icon },
 		{ label: 'Courses', href: '/(app)/courses', icon: Task01Icon },
 		{ label: 'Calendar', href: '/(app)/calendar', icon: Calendar03Icon },
-		{ label: 'Inbox', href: '/(app)/inbox', icon: Mailbox01Icon }
+		{ label: 'Inbox', href: '/(app)/inbox', icon: Mailbox01Icon },
+		{ label: 'Notebook', href: '/(app)/notebook', icon: Notebook01Icon }
 	] as const;
 </script>
 
