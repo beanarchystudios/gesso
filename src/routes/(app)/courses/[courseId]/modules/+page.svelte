@@ -92,10 +92,10 @@
 		const isAssignment = item.type.toLowerCase().includes('assign') && item.contentId != null;
 		if (isAssignment) {
 			return {
-				href: resolve('/(app)/courses/[courseId]/assignments/[assignmentId]', {
+				href: `${resolve('/(app)/courses/[courseId]/assignments/[assignmentId]', {
 					courseId,
 					assignmentId: String(item.contentId)
-				}),
+				})}?from=modules`,
 				external: false
 			};
 		}

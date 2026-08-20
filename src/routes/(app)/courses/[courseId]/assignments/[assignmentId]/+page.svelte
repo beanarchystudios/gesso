@@ -9,6 +9,13 @@
 	const courseId = $derived(page.params.courseId!);
 	const assignmentId = $derived(page.params.assignmentId!);
 	const assignment = $derived(getCourseAssignment(courseId, assignmentId));
+	const fromModules = $derived(page.url.searchParams.get('from') === 'modules');
+	const backHref = $derived(
+		fromModules
+			? resolve('/(app)/courses/[courseId]/modules', { courseId })
+			: resolve('/(app)/courses/[courseId]/assignments', { courseId })
+	);
+	const backLabel = $derived(fromModules ? 'Back to modules' : 'Back to assignments');
 
 	function formatDue(iso: string | null) {
 		if (!iso) return null;
@@ -71,11 +78,11 @@
 <main class="h-full w-full overflow-y-auto">
 	<div class="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 lg:max-w-4xl xl:max-w-5xl xl:px-8">
 		<a
-			href={resolve('/(app)/courses/[courseId]/assignments', { courseId })}
+			href={backHref}
 			class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-chart-1"
 		>
 			<HugeiconsIcon icon={ArrowLeft01Icon} class="size-4" />
-			Back to assignments
+			{backLabel}
 		</a>
 
 		{#await assignment}
@@ -168,10 +175,10 @@
 					{err instanceof Error ? err.message : 'Unable to load this assignment.'}
 				</p>
 				<a
-					href={resolve('/(app)/courses/[courseId]/assignments', { courseId })}
+					href={backHref}
 					class="mt-4 inline-block text-sm font-medium text-chart-1 hover:underline"
 				>
-					Back to assignments
+					{backLabel}
 				</a>
 			</div>
 		{/await}
