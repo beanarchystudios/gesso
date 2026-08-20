@@ -399,6 +399,12 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 							item.contentId != null && item.type.toLocaleLowerCase().includes('assign')
 								? toAssignmentHref(courseId, item.contentId)
 								: null;
+						const pageHref = item.pageUrl
+							? resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+									courseId,
+									pageUrl: item.pageUrl
+								})
+							: null;
 						perCourse.push({
 							id: `module_item-${courseId}-${m.id}-${item.id}`,
 							canonicalId: moduleItemCanonicalId(courseId, item),
@@ -407,7 +413,11 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 							type: 'module_item',
 							courseId,
 							courseName,
-							href: assignmentHref ?? item.htmlUrl ?? withQuery(`${baseHref}/modules`, item.title),
+							href:
+								assignmentHref ??
+								pageHref ??
+								item.htmlUrl ??
+								withQuery(`${baseHref}/modules`, item.title),
 							meta: item.type,
 							term: ''
 						});
@@ -438,7 +448,10 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 						type: 'page',
 						courseId,
 						courseName,
-						href: withQuery(`${baseHref}/notebook`, p.title),
+						href: resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+							courseId,
+							pageUrl: p.url
+						}),
 						meta: p.published ? '' : 'Unpublished',
 						term: ''
 					});

@@ -219,6 +219,7 @@ interface CanvasModuleItem {
 	title?: string;
 	type?: string;
 	content_id?: number | null;
+	page_url?: string | null;
 	html_url?: string | null;
 	url?: string | null;
 	position?: number;
@@ -310,6 +311,7 @@ export const getCourseModules = query('unchecked', async (courseId: string) => {
 					title: it.title ?? 'Untitled',
 					type: it.type ?? 'Unknown',
 					contentId: it.content_id ?? null,
+					pageUrl: it.page_url ?? null,
 					htmlUrl: it.html_url ?? it.url ?? null,
 					position: it.position ?? 0,
 					indent: it.indent ?? 0,
@@ -1156,6 +1158,35 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 		published: p.published ?? true
 	}));
 });
+
+export const getCoursePage = query(
+	'unchecked',
+	async (args: { courseId: string; pageUrl: string }) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		const parsedCourseId = Number(args.courseId);
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
+			error(400, 'Invalid course ID');
+		if (!args.pageUrl.trim()) error(400, 'Invalid page URL');
+
+		const response = await fetch(
+			`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages/${encodeURIComponent(args.pageUrl)}`,
+			{ headers: { Authorization: `Bearer ${apiKey}` } }
+		);
+		if (!response.ok) error(response.status, 'Unable to load page');
+		const page: CanvasWikiPageListItem & CanvasPage = await response.json();
+		return {
+			url: page.url,
+			title: page.title ?? page.url,
+			body: page.body ?? '',
+			createdAt: page.created_at ?? null,
+			updatedAt: page.updated_at ?? null,
+			frontPage: page.front_page ?? false,
+			published: page.published ?? true
+		};
+	}
+);
 
 export const getCoursePageBodies = query(
 	'unchecked',

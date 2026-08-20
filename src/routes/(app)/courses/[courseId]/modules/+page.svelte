@@ -99,6 +99,15 @@
 				external: false
 			};
 		}
+		if ((item.type === 'Page' || item.type === 'WikiPage') && item.pageUrl) {
+			return {
+				href: `${resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+					courseId,
+					pageUrl: item.pageUrl
+				})}?from=modules`,
+				external: false
+			};
+		}
 		if (item.htmlUrl) return { href: item.htmlUrl, external: true };
 		return null;
 	}

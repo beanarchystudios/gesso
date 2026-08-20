@@ -1,13 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import { getCoursePages } from '$lib/canvas';
 	import { Input } from '$lib/components/ui/input';
-	import {
-		Search01Icon,
-		Cancel01Icon,
-		Notebook01Icon,
-		ExternalLinkIcon
-	} from '@hugeicons/core-free-icons';
+	import { Search01Icon, Cancel01Icon, Notebook01Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	let query = $state(page.url.searchParams.get('q') ?? '');
@@ -144,9 +140,10 @@
 				<div class="overflow-hidden rounded-xl border bg-card">
 					{#each filtered as p, idx (p.url)}
 						<a
-							href={p.htmlUrl}
-							target="_blank"
-							rel="external noreferrer"
+							href={resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+								courseId,
+								pageUrl: p.url
+							})}
 							class="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 {idx !== 0
 								? 'border-t border-border'
 								: ''}"
@@ -172,7 +169,6 @@
 									>
 								{/if}
 							</span>
-							<HugeiconsIcon icon={ExternalLinkIcon} class="size-3.5 shrink-0 text-foreground/30" />
 						</a>
 					{/each}
 				</div>
