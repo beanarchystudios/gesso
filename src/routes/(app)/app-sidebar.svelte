@@ -37,6 +37,43 @@
 
 	const coursesPath = resolve('/(app)/courses');
 
+	const activeCourseTabId = $derived.by(() => {
+		if (!courseId) return null;
+		const pathname = page.url.pathname;
+		const base = resolve('/(app)/courses/[courseId]', { courseId: courseId! });
+		if (pathname === base || pathname === `${base}/`) return 'home';
+		if (pathname.startsWith(`${base}/`)) {
+			const rest = pathname.slice(`${base}/`.length);
+			const segment = rest.split('/')[0];
+			return segment || 'home';
+		}
+		return null;
+	});
+
+	function getTabHref(tab: { id: string; href: string }) {
+		if (!courseId) return tab.href;
+		if (tab.id === 'home') return resolve('/(app)/courses/[courseId]', { courseId: courseId! });
+		if (tab.id === 'modules')
+			return resolve('/(app)/courses/[courseId]/modules', { courseId: courseId! });
+		if (tab.id === 'announcements')
+			return resolve('/(app)/courses/[courseId]/announcements', { courseId: courseId! });
+		if (tab.id === 'assignments')
+			return resolve('/(app)/courses/[courseId]/assignments', { courseId: courseId! });
+		if (tab.id === 'discussion_topics' || tab.id === 'discussions')
+			return resolve('/(app)/courses/[courseId]/discussions', { courseId: courseId! });
+		if (tab.id === 'people' || tab.id === 'roster')
+			return resolve('/(app)/courses/[courseId]/people', { courseId: courseId! });
+		if (tab.id === 'collaborations')
+			return resolve('/(app)/courses/[courseId]/collaborations', { courseId: courseId! });
+		if (tab.id === 'pages' || tab.id === 'wiki')
+			return resolve('/(app)/courses/[courseId]/notebook', { courseId: courseId! });
+		if (tab.id === 'syllabus')
+			return resolve('/(app)/courses/[courseId]/syllabus', { courseId: courseId! });
+		if (tab.id === 'grades')
+			return resolve('/(app)/courses/[courseId]/assignments', { courseId: courseId! });
+		return tab.href;
+	}
+
 	function isActive(pathname: string) {
 		return (
 			page.url.pathname === pathname ||
@@ -111,17 +148,12 @@
 						{:then tabs}
 							{#each tabs as tab (tab.id)}
 								<Sidebar.MenuItem>
-									<Sidebar.MenuButton isActive={tab.id === 'home'}>
+									<Sidebar.MenuButton isActive={tab.id === activeCourseTabId}>
 										{#snippet child({ props })}
-											<!-- eslint-disable svelte/no-navigation-without-resolve -->
-											<a
-												{...props}
-												href={tab.id === 'home' ? page.url.pathname : tab.href}
-												title={tab.label}
-											>
+											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+											<a {...props} href={getTabHref(tab)} title={tab.label}>
 												{tab.label}
 											</a>
-											<!-- eslint-enable svelte/no-navigation-without-resolve -->
 										{/snippet}
 									</Sidebar.MenuButton>
 								</Sidebar.MenuItem>

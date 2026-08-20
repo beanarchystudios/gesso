@@ -1,11 +1,20 @@
 import { browser } from '$app/environment';
 import Dexie, { type EntityTable } from 'dexie';
 import {
+	getCalendarEvents as fetchCalendarEvents,
 	getCanvasUser as fetchCanvasUser,
 	getConversation as fetchConversation,
 	getConversations as fetchConversations,
+	getCourseAnnouncements as fetchCourseAnnouncements,
+	getCourseAssignments as fetchCourseAssignments,
+	getCourseCollaborations as fetchCourseCollaborations,
+	getCourseDetails as fetchCourseDetails,
+	getCourseDiscussions as fetchCourseDiscussions,
+	getCoursePages as fetchCoursePages,
+	getCoursePeople as fetchCoursePeople,
 	getCourses as fetchCourses,
 	getCourseFrontPage as fetchCourseFrontPage,
+	getCourseModules as fetchCourseModules,
 	getCourseTabs as fetchCourseTabs,
 	getFavoriteCourses as fetchFavoriteCourses
 } from './canvas.remote';
@@ -92,12 +101,49 @@ export function getCourseFrontPage(courseId: string) {
 	return cached(`course:${courseId}:front-page`, () => fetchCourseFrontPage(courseId));
 }
 
+export function getCourseModules(courseId: string) {
+	return cached(`course:${courseId}:modules`, () => fetchCourseModules(courseId));
+}
+
+export function getCourseAnnouncements(courseId: string) {
+	return cached(`course:${courseId}:announcements`, () => fetchCourseAnnouncements(courseId));
+}
+
+export function getCourseAssignments(courseId: string) {
+	return cached(`course:${courseId}:assignments`, () => fetchCourseAssignments(courseId));
+}
+
+export function getCourseDiscussions(courseId: string) {
+	return cached(`course:${courseId}:discussions`, () => fetchCourseDiscussions(courseId));
+}
+
+export function getCoursePeople(courseId: string) {
+	return cached(`course:${courseId}:people`, () => fetchCoursePeople(courseId));
+}
+
+export function getCoursePages(courseId: string) {
+	return cached(`course:${courseId}:pages`, () => fetchCoursePages(courseId));
+}
+
+export function getCourseCollaborations(courseId: string) {
+	return cached(`course:${courseId}:collaborations`, () => fetchCourseCollaborations(courseId));
+}
+
+export function getCourseDetails(courseId: string) {
+	return cached(`course:${courseId}:details`, () => fetchCourseDetails(courseId));
+}
+
 export function getConversations() {
 	return cached('conversations', () => fetchConversations());
 }
 
 export function getConversation(conversationId: string) {
 	return cached(`conversation:${conversationId}`, () => fetchConversation(conversationId));
+}
+
+export function getCalendarEvents(opts: { start: string; end: string }) {
+	const key = `calendar:${opts.start}:${opts.end}`;
+	return cached(key, () => fetchCalendarEvents(opts));
 }
 
 export async function clearCanvasCache() {

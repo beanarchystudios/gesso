@@ -198,6 +198,115 @@ export const getCourseTabs = query('unchecked', async (courseId: string) => {
 		}));
 });
 
+interface CanvasModuleItem {
+	id: number;
+	title?: string;
+	type?: string;
+	content_id?: number | null;
+	html_url?: string | null;
+	url?: string | null;
+	position?: number;
+	indent?: number;
+	published?: boolean;
+	completion_requirement?: {
+		type?: string;
+		completed?: boolean;
+		min_score?: number | null;
+	} | null;
+	content_details?: {
+		points_possible?: number | null;
+		due_at?: string | null;
+		locked_for_user?: boolean | null;
+		unlock_at?: string | null;
+		hidden?: boolean | null;
+	} | null;
+}
+
+interface CanvasModule {
+	id: number;
+	name?: string;
+	position?: number;
+	state?: string;
+	unlock_at?: string | null;
+	require_sequential_progress?: boolean;
+	prerequisite_module_ids?: number[];
+	items_count?: number;
+	items_url?: string;
+	items?: CanvasModuleItem[];
+}
+
+export const getCourseModules = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+
+	if (!apiKey || !instanceUrl) {
+		error(500, 'Canvas is not configured');
+	}
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) {
+		error(400, 'Invalid course ID');
+	}
+
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const modules: CanvasModule[] = [];
+	let page = 1;
+	while (true) {
+		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/modules`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		url.searchParams.append('include[]', 'items');
+		url.searchParams.append('include[]', 'content_details');
+
+		const res = await fetch(url, { headers });
+		if (!res.ok) {
+			error(res.status, 'Unable to load course modules');
+		}
+		const batch: CanvasModule[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		modules.push(...batch);
+		const link = res.headers.get('Link') ?? res.headers.get('link');
+		const hasNext = link ? link.includes('rel="next"') : false;
+		if (hasNext) {
+			page += 1;
+			continue;
+		}
+		if (batch.length < 100) break;
+		if (batch.length === 0) break;
+		page += 1;
+		if (page > 50) break;
+	}
+
+	return modules
+		.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+		.map((m) => ({
+			id: m.id,
+			name: m.name ?? 'Untitled module',
+			position: m.position ?? 0,
+			state: m.state ?? 'active',
+			unlockAt: m.unlock_at ?? null,
+			requireSequentialProgress: m.require_sequential_progress ?? false,
+			prerequisiteModuleIds: m.prerequisite_module_ids ?? [],
+			itemsCount: m.items_count ?? m.items?.length ?? 0,
+			items: (m.items ?? [])
+				.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+				.map((it) => ({
+					id: it.id,
+					title: it.title ?? 'Untitled',
+					type: it.type ?? 'Unknown',
+					contentId: it.content_id ?? null,
+					htmlUrl: it.html_url ?? it.url ?? null,
+					position: it.position ?? 0,
+					indent: it.indent ?? 0,
+					published: it.published ?? true,
+					completionRequirement: it.completion_requirement ?? null,
+					pointsPossible: it.content_details?.points_possible ?? null,
+					dueAt: it.content_details?.due_at ?? null,
+					lockedForUser: it.content_details?.locked_for_user ?? null,
+					unlockAt: it.content_details?.unlock_at ?? null
+				}))
+		}));
+});
+
 export const getCourseFrontPage = query('unchecked', async (courseId: string) => {
 	const apiKey = env.CANVAS_API_KEY;
 	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
@@ -354,6 +463,545 @@ export const getConversation = query('unchecked', async (conversationId: string)
 		contextCode: conv.context_code ?? null,
 		contextName: conv.context_name ?? null,
 		properties: conv.properties ?? []
+	};
+});
+
+interface CanvasCalendarEvent {
+	id: number | string;
+	title?: string | null;
+	description?: string | null;
+	start_at?: string | null;
+	end_at?: string | null;
+	all_day?: boolean;
+	all_day_date?: string | null;
+	context_code?: string | null;
+	context_name?: string | null;
+	workflow_state?: string;
+	hidden?: boolean;
+	url?: string | null;
+	html_url?: string | null;
+	type?: string;
+	assignment?: {
+		id?: number;
+		name?: string | null;
+		due_at?: string | null;
+		html_url?: string | null;
+		description?: string | null;
+		points_possible?: number | null;
+	} | null;
+	important_dates?: boolean;
+}
+
+interface CanvasPlannerItem {
+	plannable_id: number | string;
+	plannable_type: string;
+	plannable_date?: string | null;
+	html_url?: string | null;
+	context_name?: string | null;
+	context_type?: string | null;
+	course_id?: number | null;
+	plannable?: {
+		title?: string | null;
+		due_at?: string | null;
+		todo_date?: string | null;
+		start_at?: string | null;
+		end_at?: string | null;
+		details?: string | null;
+		description?: string | null;
+		points_possible?: number | null;
+	};
+	new_activity?: boolean;
+	planner_override?: unknown;
+	submissions?: unknown;
+}
+
+export const getCalendarEvents = query(
+	'unchecked',
+	async (opts: { start: string; end: string }) => {
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/\/$/, '');
+
+		if (!apiKey || !instanceUrl) {
+			error(500, 'Canvas is not configured');
+		}
+
+		const headers = { Authorization: `Bearer ${apiKey}` };
+
+		const colorsPromise: Promise<CanvasColors> = fetch(`${instanceUrl}/api/v1/users/self/colors`, {
+			headers
+		})
+			.then(async (r) => {
+				if (!r.ok) return {} as CanvasColors;
+				try {
+					return (await r.json()) as CanvasColors;
+				} catch {
+					return {} as CanvasColors;
+				}
+			})
+			.catch(() => ({}) as CanvasColors);
+
+		// Fetch calendar_events and planner items in parallel, collecting paginated results
+		async function fetchPaged<T>(baseUrl: URL): Promise<T[]> {
+			const all: T[] = [];
+			let page = 1;
+			while (true) {
+				const url = new URL(baseUrl.toString());
+				url.searchParams.set('per_page', '100');
+				url.searchParams.set('page', String(page));
+				const res = await fetch(url, { headers });
+				if (!res.ok) {
+					// For calendar, 401/403 should surface; for other ranges just break with what we have
+					if (all.length === 0) error(res.status, 'Unable to load calendar events');
+					break;
+				}
+				const batch: T[] = await res.json();
+				// Canvas sometimes returns object with error outside array — bail
+				if (!Array.isArray(batch)) break;
+				all.push(...batch);
+				const link = res.headers.get('Link') ?? res.headers.get('link');
+				const hasNext = link ? link.includes('rel="next"') : false;
+				if (hasNext) {
+					page += 1;
+					continue;
+				}
+				if (batch.length < 100) break;
+				if (batch.length === 0) break;
+				page += 1;
+				if (page > 20) break;
+			}
+			return all;
+		}
+
+		const calUrl = new URL(`${instanceUrl}/api/v1/calendar_events`);
+		calUrl.searchParams.set('all_events', 'true');
+		calUrl.searchParams.set('start_date', opts.start);
+		calUrl.searchParams.set('end_date', opts.end);
+		calUrl.searchParams.set('per_page', '100');
+		// include assignment details and context
+		calUrl.searchParams.append('type', 'assignment');
+		calUrl.searchParams.append('type', 'calendar_event');
+		calUrl.searchParams.append('type', 'appointment_group');
+
+		const plannerUrl = new URL(`${instanceUrl}/api/v1/planner/items`);
+		plannerUrl.searchParams.set('start_date', opts.start);
+		plannerUrl.searchParams.set('end_date', opts.end);
+		plannerUrl.searchParams.set('per_page', '100');
+		plannerUrl.searchParams.set('order', 'asc');
+
+		const [calendarEvents, plannerItems, colors] = await Promise.all([
+			fetchPaged<CanvasCalendarEvent>(calUrl).catch(() => [] as CanvasCalendarEvent[]),
+			fetchPaged<CanvasPlannerItem>(plannerUrl).catch(() => [] as CanvasPlannerItem[]),
+			colorsPromise
+		]);
+
+		const seen = new Set<string>();
+		// Normalize calendar events
+		const fromCalendar = calendarEvents
+			.filter((e) => !e.hidden)
+			.map((e) => {
+				const contextCode = e.context_code ?? null;
+				const courseMatch = contextCode?.match(/^course_(\d+)/);
+				const courseId = courseMatch ? courseMatch[1] : null;
+				const isAssignment = e.type === 'assignment' || !!e.assignment;
+				// assignment due_at takes precedence, otherwise start_at / all_day_date
+				const assignmentDue = e.assignment?.due_at ?? null;
+				const start =
+					assignmentDue ??
+					e.start_at ??
+					(e.all_day_date ? `${e.all_day_date}T00:00:00.000Z` : null);
+				const end = e.end_at ?? null;
+				const color = contextCode ? (colors.custom_colors?.[contextCode] ?? null) : null;
+				const id = `cal-${e.id}`;
+				seen.add(`${e.title ?? ''}|${start ?? ''}|${contextCode ?? ''}`);
+				return {
+					id,
+					rawId: String(e.id),
+					title: (e.assignment?.name ?? e.title ?? 'Untitled').trim() || 'Untitled',
+					description: e.description ?? e.assignment?.description ?? null,
+					start,
+					end,
+					allDay: Boolean(e.all_day) || !!e.all_day_date,
+					allDayDate: e.all_day_date ?? null,
+					type: (isAssignment ? 'assignment' : (e.type ?? 'calendar_event')) as string,
+					contextCode,
+					contextName: e.context_name ?? null,
+					courseId,
+					color,
+					url: e.url ?? null,
+					htmlUrl: e.html_url ?? e.assignment?.html_url ?? null,
+					pointsPossible: e.assignment?.points_possible ?? null,
+					source: 'calendar' as const
+				};
+			});
+
+		const fromPlanner = plannerItems
+			.map((p) => {
+				const plannable = p.plannable ?? {};
+				const title = (plannable.title ?? String(p.plannable_id)).trim() || 'Untitled';
+				const start =
+					p.plannable_date ?? plannable.due_at ?? plannable.todo_date ?? plannable.start_at ?? null;
+				const end = plannable.end_at ?? null;
+				const contextCode =
+					p.course_id != null
+						? `course_${p.course_id}`
+						: p.context_type && p.context_type.toLowerCase() === 'course' && p.course_id
+							? `course_${p.course_id}`
+							: null;
+				const key = `${title}|${start ?? ''}|${contextCode ?? ''}`;
+				if (seen.has(key)) return null;
+				seen.add(key);
+				const courseId = contextCode ? contextCode.replace('course_', '') : null;
+				const color = contextCode ? (colors.custom_colors?.[contextCode] ?? null) : null;
+				return {
+					id: `planner-${p.plannable_type}-${p.plannable_id}`,
+					rawId: String(p.plannable_id),
+					title,
+					description: plannable.details ?? plannable.description ?? null,
+					start,
+					end,
+					allDay: false,
+					allDayDate: null,
+					type: p.plannable_type as string,
+					contextCode,
+					contextName: p.context_name ?? null,
+					courseId,
+					color,
+					url: null,
+					htmlUrl: p.html_url ?? null,
+					pointsPossible:
+						(plannable as { points_possible?: number | null }).points_possible ?? null,
+					source: 'planner' as const
+				};
+			})
+			.filter((x): x is NonNullable<typeof x> => x !== null && x.start !== null);
+
+		return [...fromCalendar, ...fromPlanner].filter((e) => e.start);
+	}
+);
+
+interface CanvasAnnouncementTopic {
+	id: number;
+	title?: string | null;
+	message?: string | null;
+	posted_at?: string | null;
+	last_reply_at?: string | null;
+	created_at?: string | null;
+	author?: {
+		display_name?: string | null;
+		avatar_image_url?: string | null;
+		id?: number | null;
+	} | null;
+	reply_count?: number;
+	html_url?: string | null;
+	url?: string | null;
+	read_state?: string | null;
+	is_announcement?: boolean;
+}
+
+interface CanvasAssignment {
+	id: number;
+	name?: string | null;
+	description?: string | null;
+	due_at?: string | null;
+	points_possible?: number | null;
+	html_url?: string | null;
+	submission_types?: string[] | null;
+	workflow_state?: string | null;
+	published?: boolean | null;
+	lock_at?: string | null;
+	unlock_at?: string | null;
+	grading_type?: string | null;
+}
+
+interface CanvasDiscussion {
+	id: number;
+	title?: string | null;
+	message?: string | null;
+	posted_at?: string | null;
+	last_reply_at?: string | null;
+	created_at?: string | null;
+	author?: { display_name?: string | null; avatar_image_url?: string | null } | null;
+	discussion_type?: string | null;
+	reply_count?: number | null;
+	discussion_subentry_count?: number | null;
+	html_url?: string | null;
+	published?: boolean | null;
+	locked?: boolean | null;
+	is_announcement?: boolean | null;
+}
+
+interface CanvasCourseUser {
+	id: number;
+	name?: string | null;
+	short_name?: string | null;
+	sortable_name?: string | null;
+	avatar_url?: string | null;
+	enrollments?:
+		{ type?: string | null; role?: string | null; enrollment_state?: string | null }[] | null;
+	pronouns?: string | null;
+	login_id?: string | null;
+	email?: string | null;
+}
+
+interface CanvasWikiPageListItem {
+	url: string;
+	title?: string | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	front_page?: boolean | null;
+	html_url?: string | null;
+	page_id?: number | null;
+	published?: boolean | null;
+}
+
+interface CanvasCollaboration {
+	id: number;
+	title?: string | null;
+	collaboration_type?: string | null;
+	url?: string | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	user_id?: number | null;
+}
+
+interface CanvasCourseDetails {
+	id: number;
+	name?: string | null;
+	syllabus_body?: string | null;
+	html_url?: string | null;
+	course_code?: string | null;
+}
+
+export const getCourseAnnouncements = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+	url.searchParams.set('only_announcements', 'true');
+	url.searchParams.set('per_page', '100');
+	const res = await fetch(url, { headers });
+	if (!res.ok) error(res.status, 'Unable to load announcements');
+	const data: CanvasAnnouncementTopic[] = await res.json();
+	return (Array.isArray(data) ? data : []).map((a) => ({
+		id: a.id,
+		title: a.title ?? '(No subject)',
+		message: a.message ?? '',
+		postedAt: a.posted_at ?? a.created_at ?? null,
+		lastReplyAt: a.last_reply_at ?? null,
+		authorName: a.author?.display_name ?? 'Unknown',
+		authorAvatar: a.author?.avatar_image_url ?? null,
+		htmlUrl: a.html_url ?? a.url ?? null,
+		replyCount: a.reply_count ?? 0
+	}));
+});
+
+export const getCourseAssignments = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const assignments: CanvasAssignment[] = [];
+	let page = 1;
+	while (true) {
+		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		url.searchParams.set('order_by', 'due_at');
+		const res = await fetch(url, { headers });
+		if (!res.ok) error(res.status, 'Unable to load assignments');
+		const batch: CanvasAssignment[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		assignments.push(...batch);
+		const link = res.headers.get('Link') ?? res.headers.get('link');
+		const hasNext = link ? link.includes('rel="next"') : false;
+		if (hasNext) {
+			page += 1;
+			continue;
+		}
+		if (batch.length < 100) break;
+		if (batch.length === 0) break;
+		page += 1;
+		if (page > 20) break;
+	}
+	return assignments.map((a) => ({
+		id: a.id,
+		name: a.name ?? 'Untitled',
+		description: a.description ?? '',
+		dueAt: a.due_at ?? null,
+		pointsPossible: a.points_possible ?? null,
+		htmlUrl: a.html_url ?? null,
+		submissionTypes: a.submission_types ?? [],
+		workflowState: a.workflow_state ?? 'published',
+		published: a.published ?? true,
+		lockAt: a.lock_at ?? null,
+		unlockAt: a.unlock_at ?? null
+	}));
+});
+
+export const getCourseDiscussions = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+	url.searchParams.set('per_page', '100');
+	const res = await fetch(url, { headers });
+	if (!res.ok) error(res.status, 'Unable to load discussions');
+	const data: CanvasDiscussion[] = await res.json();
+	return (Array.isArray(data) ? data : [])
+		.filter((d) => !d.is_announcement as unknown as boolean)
+		.map((d) => ({
+			id: d.id,
+			title: d.title ?? '(No title)',
+			message: d.message ?? '',
+			postedAt: d.posted_at ?? d.created_at ?? null,
+			lastReplyAt: d.last_reply_at ?? null,
+			authorName: d.author?.display_name ?? 'Unknown',
+			type: d.discussion_type ?? 'side_comment',
+			replyCount: d.reply_count ?? d.discussion_subentry_count ?? 0,
+			htmlUrl: d.html_url ?? null,
+			published: d.published ?? true,
+			locked: d.locked ?? false
+		}));
+});
+
+export const getCoursePeople = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const people: CanvasCourseUser[] = [];
+	let page = 1;
+	while (true) {
+		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/users`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		url.searchParams.append('include[]', 'enrollments');
+		url.searchParams.append('include[]', 'avatar_url');
+		const res = await fetch(url, { headers });
+		if (!res.ok) error(res.status, 'Unable to load people');
+		const batch: CanvasCourseUser[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		people.push(...batch);
+		const link = res.headers.get('Link') ?? res.headers.get('link');
+		const hasNext = link ? link.includes('rel="next"') : false;
+		if (hasNext) {
+			page += 1;
+			continue;
+		}
+		if (batch.length < 100) break;
+		if (batch.length === 0) break;
+		page += 1;
+		if (page > 20) break;
+	}
+	return people.map((p) => ({
+		id: p.id,
+		name: p.name ?? p.short_name ?? 'Unknown',
+		shortName: p.short_name ?? null,
+		avatarUrl: p.avatar_url ?? null,
+		pronouns: p.pronouns ?? null,
+		loginId: p.login_id ?? null,
+		email: p.email ?? null,
+		role: p.enrollments?.[0]?.role ?? p.enrollments?.[0]?.type ?? 'Student',
+		enrollmentState: p.enrollments?.[0]?.enrollment_state ?? null
+	}));
+});
+
+export const getCoursePages = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const pages: CanvasWikiPageListItem[] = [];
+	let page = 1;
+	while (true) {
+		const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages`);
+		url.searchParams.set('per_page', '100');
+		url.searchParams.set('page', String(page));
+		url.searchParams.set('sort', 'title');
+		const res = await fetch(url, { headers });
+		if (!res.ok) {
+			if (res.status === 404) return [];
+			error(res.status, 'Unable to load pages');
+		}
+		const batch: CanvasWikiPageListItem[] = await res.json();
+		if (!Array.isArray(batch)) break;
+		pages.push(...batch);
+		const link = res.headers.get('Link') ?? res.headers.get('link');
+		const hasNext = link ? link.includes('rel="next"') : false;
+		if (hasNext) {
+			page += 1;
+			continue;
+		}
+		if (batch.length < 100) break;
+		if (batch.length === 0) break;
+		page += 1;
+		if (page > 10) break;
+	}
+	return pages.map((p) => ({
+		url: p.url,
+		title: p.title ?? p.url,
+		createdAt: p.created_at ?? null,
+		updatedAt: p.updated_at ?? null,
+		frontPage: p.front_page ?? false,
+		htmlUrl: p.html_url ?? `${instanceUrl}/courses/${parsedCourseId}/pages/${p.url}`,
+		published: p.published ?? true
+	}));
+});
+
+export const getCourseCollaborations = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const headers = { Authorization: `Bearer ${apiKey}` };
+	const res = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}/collaborations`, {
+		headers
+	});
+	if (!res.ok) {
+		if (res.status === 404 || res.status === 403) return [];
+		error(res.status, 'Unable to load collaborations');
+	}
+	const data: CanvasCollaboration[] = await res.json();
+	return (Array.isArray(data) ? data : []).map((c) => ({
+		id: c.id,
+		title: c.title ?? 'Untitled',
+		type: c.collaboration_type ?? 'unknown',
+		url: c.url ?? null,
+		createdAt: c.created_at ?? null,
+		updatedAt: c.updated_at ?? null
+	}));
+});
+
+export const getCourseDetails = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const res = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}`, {
+		headers: { Authorization: `Bearer ${apiKey}` }
+	});
+	if (!res.ok) error(res.status, 'Unable to load course details');
+	const course: CanvasCourseDetails = await res.json();
+	return {
+		id: course.id,
+		name: course.name ?? 'Course',
+		courseCode: course.course_code ?? null,
+		syllabusBody: course.syllabus_body ?? '',
+		htmlUrl: course.html_url ?? `${instanceUrl}/courses/${parsedCourseId}/assignments/syllabus`
 	};
 });
 
