@@ -353,7 +353,7 @@
 
 		<!-- selected day agenda -->
 		<div
-			class="flex w-full shrink-0 flex-col border-t lg:w-[360px] lg:border-s lg:border-t-0 xl:w-[400px] 2xl:w-[440px]"
+			class="flex w-full shrink-0 flex-col border-t border-l-0! lg:w-[360px] lg:border-s lg:border-t-0 xl:w-[400px] 2xl:w-[440px]"
 		>
 			<div class="shrink-0 px-5 py-4">
 				<p class="text-sm font-semibold">
