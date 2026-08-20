@@ -6,7 +6,12 @@
 	import { removeCanvasCredentials } from '$lib/canvas-credentials';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Sidebar from '$lib/components/ui/sidebar';
-	import { getCourseTabShortcut } from '$lib/course-shortcuts';
+	import {
+		getActiveCourseTabId,
+		getCourseTabHref,
+		getCourseTabShortcut,
+		isCourseTabActive
+	} from '$lib/course-tabs';
 	import {
 		Calendar03Icon,
 		DashboardSquare02Icon,
@@ -54,70 +59,17 @@
 
 	const coursesPath = resolve('/(app)/courses');
 
-	const activeCourseTabId = $derived.by(() => {
-		if (!courseId) return null;
-		const pathname = page.url.pathname;
-		const base = resolve('/(app)/courses/[courseId]', { courseId: courseId! });
-		if (pathname === base || pathname === `${base}/`) return 'home';
-		if (pathname.startsWith(`${base}/`)) {
-			const rest = pathname.slice(`${base}/`.length);
-			const segment = rest.split('/')[0];
-			return segment || 'home';
-		}
-		return null;
-	});
+	const activeCourseTabId = $derived.by(() =>
+		courseId ? getActiveCourseTabId(courseId, page.url.pathname) : null
+	);
 
 	function isTabActive(tab: { id: string; label?: string }, active: string | null) {
-		if (!active) return false;
-		if (tab.id === active) return true;
-		const label = (tab.label ?? '').toLowerCase();
-		if (active === 'notebook' && label.includes('notebook')) return true;
-		if (active === 'collaborations' && label.includes('collaborat')) return true;
-		if (active === 'chat' && label.includes('chat')) return true;
-		if (
-			active === 'discussions' &&
-			(tab.id === 'discussion_topics' || label.includes('discussion'))
-		)
-			return true;
-		if (tab.id.startsWith('context_external_tool_') && label.includes(active.toLowerCase()))
-			return true;
-		return false;
+		return isCourseTabActive(tab, active);
 	}
 
 	function getTabHref(tab: { id: string; href: string; label?: string }) {
 		if (!courseId) return tab.href;
-		const label = (tab.label ?? '').toLowerCase();
-		if (tab.id === 'home') return resolve('/(app)/courses/[courseId]', { courseId: courseId! });
-		if (tab.id === 'modules')
-			return resolve('/(app)/courses/[courseId]/modules', { courseId: courseId! });
-		if (tab.id === 'announcements')
-			return resolve('/(app)/courses/[courseId]/announcements', { courseId: courseId! });
-		if (tab.id === 'assignments')
-			return resolve('/(app)/courses/[courseId]/assignments', { courseId: courseId! });
-		if (tab.id === 'discussion_topics' || tab.id === 'discussions')
-			return resolve('/(app)/courses/[courseId]/discussions', { courseId: courseId! });
-		if (tab.id === 'people' || tab.id === 'roster')
-			return resolve('/(app)/courses/[courseId]/people', { courseId: courseId! });
-		if (tab.id === 'collaborations' || label.includes('collaborat'))
-			return resolve('/(app)/courses/[courseId]/collaborations', { courseId: courseId! });
-		if (tab.id === 'pages' || tab.id === 'wiki' || label.includes('notebook'))
-			return resolve('/(app)/courses/[courseId]/notebook', { courseId: courseId! });
-		if (tab.id === 'syllabus')
-			return resolve('/(app)/courses/[courseId]/syllabus', { courseId: courseId! });
-		if (tab.id === 'grades')
-			return resolve('/(app)/courses/[courseId]/grades', { courseId: courseId! });
-		if (tab.id === 'chat' || label.includes('chat'))
-			return resolve('/(app)/courses/[courseId]/chat', { courseId: courseId! });
-		// external LTI that we map by label
-		if (tab.id.startsWith('context_external_tool_')) {
-			if (label.includes('notebook'))
-				return resolve('/(app)/courses/[courseId]/notebook', { courseId: courseId! });
-			if (label.includes('collaborat'))
-				return resolve('/(app)/courses/[courseId]/collaborations', { courseId: courseId! });
-			if (label.includes('chat'))
-				return resolve('/(app)/courses/[courseId]/chat', { courseId: courseId! });
-		}
-		return tab.href;
+		return getCourseTabHref(tab, courseId);
 	}
 
 	function isActive(pathname: string) {

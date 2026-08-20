@@ -28,6 +28,7 @@
 		MailReply02Icon
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { stripHtml } from '$lib/utils/html';
 	import { tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { Virtualizer } from 'virtua/svelte';
@@ -78,18 +79,6 @@
 	let triagePopoverEl: HTMLDivElement | undefined = $state(undefined);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	let virt: any = $state(undefined);
-
-	function stripHtml(html: string): string {
-		return html
-			.replace(/<[^>]*>/g, ' ')
-			.replace(/&nbsp;/g, ' ')
-			.replace(/&amp;/g, '&')
-			.replace(/&lt;/g, '<')
-			.replace(/&gt;/g, '>')
-			.replace(/&quot;/g, '"')
-			.replace(/\s+/g, ' ')
-			.trim();
-	}
 
 	function initials(name: string) {
 		return (

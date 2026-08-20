@@ -12,6 +12,7 @@
 		Search01Icon
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+	import { stripHtml } from '$lib/utils/html';
 
 	type CalendarItem = Awaited<ReturnType<typeof getCalendarEvents>>[number];
 
@@ -23,16 +24,6 @@
 	let events = $state<CalendarItem[]>([]);
 	let loading = $state(false);
 	let error = $state<string | null>(null);
-
-	function stripHtml(html: string | null) {
-		if (!html) return '';
-		return html
-			.replace(/<[^>]*>/g, ' ')
-			.replace(/&nbsp;/g, ' ')
-			.replace(/&amp;/g, '&')
-			.replace(/\s+/g, ' ')
-			.trim();
-	}
 
 	function startOfDay(d: Date) {
 		const x = new Date(d);

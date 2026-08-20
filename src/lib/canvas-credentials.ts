@@ -1,28 +1,14 @@
 import { browser } from '$app/environment';
-import Dexie, { type EntityTable } from 'dexie';
+import type { EntityTable } from 'dexie';
+import { createDexie } from './db';
+import { normalizeInstanceUrl } from './utils/canvas-url';
+import type { CanvasCredentials } from './canvas/credentials-types';
 
-export interface CanvasCredentials {
-	id: 'canvas';
-	instanceUrl: string;
-	apiKey: string;
-	updatedAt: number;
-}
+export type { CanvasCredentials } from './canvas/credentials-types';
 
-const db = browser
-	? (new Dexie('gesso-settings') as Dexie & {
-			credentials: EntityTable<CanvasCredentials, 'id'>;
-		})
-	: null;
-
-if (db) db.version(1).stores({ credentials: '&id, updatedAt' });
-
-function normalizeInstanceUrl(value: string) {
-	const url = new URL(value.trim());
-	if (url.protocol !== 'https:') throw new Error('Canvas must use an HTTPS URL.');
-	if (url.username || url.password)
-		throw new Error('Use a Canvas URL without embedded credentials.');
-	return url.origin + url.pathname.replace(/\/$/, '');
-}
+const db = createDexie<{ credentials: EntityTable<CanvasCredentials, 'id'> }>('gesso-settings', {
+	credentials: '&id, updatedAt'
+});
 
 function setBridgeCookies(credentials: CanvasCredentials | null) {
 	if (!browser) return;

@@ -1,96 +1,37 @@
-import { env } from './canvas-env.server';
 import { command, query } from '$app/server';
 import { error } from '@sveltejs/kit';
-
-interface CanvasProfile {
-	id?: number;
-	name?: string;
-	short_name?: string;
-	sortable_name?: string;
-	avatar_url?: string;
-	title?: string | null;
-	bio?: string | null;
-	primary_email?: string | null;
-	login_id?: string | null;
-	time_zone?: string | null;
-	locale?: string | null;
-	effective_locale?: string | null;
-	pronouns?: string | null;
-}
-
-interface CanvasCourse {
-	id: number;
-	name?: string;
-	course_code?: string;
-	image_download_url?: string;
-	workflow_state?: string;
-	is_favorite?: boolean;
-	term?: { name?: string; start_at?: string | null; end_at?: string | null };
-	start_at?: string | null;
-	end_at?: string | null;
-}
-
-interface CanvasColors {
-	custom_colors?: Record<string, string>;
-}
-
-interface CanvasPage {
-	title?: string;
-	body?: string;
-}
-
-interface CanvasTab {
-	id: string;
-	label?: string;
-	html_url?: string;
-	position?: number;
-	type?: string;
-}
-
-interface CanvasConversationParticipant {
-	id: number;
-	name?: string;
-	avatar_url?: string | null;
-}
-
-interface CanvasConversation {
-	id: number;
-	subject?: string | null;
-	workflow_state?: string;
-	last_message?: string | null;
-	last_message_at?: string | null;
-	last_authored_message_at?: string | null;
-	message_count?: number;
-	subscribed?: boolean;
-	private?: boolean;
-	starred?: boolean;
-	properties?: string[];
-	audience?: number[];
-	participants?: CanvasConversationParticipant[];
-	avatar_url?: string | null;
-	context_code?: string | null;
-	context_name?: string | null;
-}
-
-interface CanvasConversationMessage {
-	id: number;
-	body?: string | null;
-	created_at?: string | null;
-	author_id?: number | null;
-	generated?: boolean;
-}
-
-interface CanvasSingleConversation extends CanvasConversation {
-	messages?: CanvasConversationMessage[];
-}
+import {
+	canvasHeaders,
+	fetchColors,
+	fetchPaginated,
+	hasNextPage,
+	parseCourseId,
+	parseId,
+	requireCanvasEnv
+} from './canvas/helpers.server';
+import type {
+	CanvasAnnouncementTopic,
+	CanvasAssignment,
+	CanvasCalendarEvent,
+	CanvasCollaboration,
+	CanvasColors,
+	CanvasConversation,
+	CanvasCourse,
+	CanvasCourseDetails,
+	CanvasCourseUser,
+	CanvasDiscussion,
+	CanvasModule,
+	CanvasPage,
+	CanvasPlannerItem,
+	CanvasProfile,
+	CanvasSingleConversation,
+	CanvasSubmission,
+	CanvasTab,
+	CanvasWikiPageListItem
+} from './canvas/types';
 
 export const getCourses = query(async () => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
 
 	const courseUrl = (enrollmentState: 'active' | 'completed') => {
 		const url = new URL(`${instanceUrl}/api/v1/courses`);
@@ -102,7 +43,7 @@ export const getCourses = query(async () => {
 		return url;
 	};
 
-	const headers = { Authorization: `Bearer ${apiKey}` };
+	const headers = canvasHeaders(apiKey);
 	const [activeResponse, completedResponse, colorsResponse] = await Promise.all([
 		fetch(courseUrl('active'), { headers }),
 		fetch(courseUrl('completed'), { headers }),
@@ -144,17 +85,12 @@ export const getCourses = query(async () => {
 });
 
 export const getFavoriteCourses = query(async () => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
 
 	const url = new URL(`${instanceUrl}/api/v1/users/self/favorites/courses`);
 	url.searchParams.append('include[]', 'course_image');
 
-	const headers = { Authorization: `Bearer ${apiKey}` };
+	const headers = canvasHeaders(apiKey);
 	const [coursesResponse, colorsResponse] = await Promise.all([
 		fetch(url, { headers }),
 		fetch(`${instanceUrl}/api/v1/users/self/colors`, { headers })
@@ -178,19 +114,11 @@ export const getFavoriteCourses = query(async () => {
 });
 
 export const getCourseTabs = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) {
-		error(400, 'Invalid course ID');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 
 	const response = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}/tabs`, {
-		headers: { Authorization: `Bearer ${apiKey}` }
+		headers: canvasHeaders(apiKey)
 	});
 
 	if (!response.ok) {
@@ -200,7 +128,6 @@ export const getCourseTabs = query('unchecked', async (courseId: string) => {
 	const tabs: CanvasTab[] = await response.json();
 	return tabs
 		.filter((tab) => {
-			// Keep Notebook/Collaborations/Chat even when they are external LTI tools
 			const label = (tab.label ?? '').toLowerCase();
 			if (label.includes('notebook') || label.includes('collaborat') || label.includes('chat'))
 				return true;
@@ -214,57 +141,11 @@ export const getCourseTabs = query('unchecked', async (courseId: string) => {
 		}));
 });
 
-interface CanvasModuleItem {
-	id: number;
-	title?: string;
-	type?: string;
-	content_id?: number | null;
-	page_url?: string | null;
-	html_url?: string | null;
-	url?: string | null;
-	position?: number;
-	indent?: number;
-	published?: boolean;
-	completion_requirement?: {
-		type?: string;
-		completed?: boolean;
-		min_score?: number | null;
-	} | null;
-	content_details?: {
-		points_possible?: number | null;
-		due_at?: string | null;
-		locked_for_user?: boolean | null;
-		unlock_at?: string | null;
-		hidden?: boolean | null;
-	} | null;
-}
-
-interface CanvasModule {
-	id: number;
-	name?: string;
-	position?: number;
-	state?: string;
-	unlock_at?: string | null;
-	require_sequential_progress?: boolean;
-	prerequisite_module_ids?: number[];
-	items_count?: number;
-	items_url?: string;
-	items?: CanvasModuleItem[];
-}
-
 export const getCourseModules = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) {
-		error(400, 'Invalid course ID');
-	}
-
-	const headers = { Authorization: `Bearer ${apiKey}` };
+	const headers = canvasHeaders(apiKey);
 	const modules: CanvasModule[] = [];
 	let page = 1;
 	while (true) {
@@ -282,8 +163,7 @@ export const getCourseModules = query('unchecked', async (courseId: string) => {
 		if (!Array.isArray(batch)) break;
 		modules.push(...batch);
 		const link = res.headers.get('Link') ?? res.headers.get('link');
-		const hasNext = link ? link.includes('rel="next"') : false;
-		if (hasNext) {
+		if (hasNextPage(link)) {
 			page += 1;
 			continue;
 		}
@@ -326,19 +206,11 @@ export const getCourseModules = query('unchecked', async (courseId: string) => {
 });
 
 export const getCourseFrontPage = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) {
-		error(400, 'Invalid course ID');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 
 	const response = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}/front_page`, {
-		headers: { Authorization: `Bearer ${apiKey}` }
+		headers: canvasHeaders(apiKey)
 	});
 
 	if (!response.ok) {
@@ -353,61 +225,21 @@ export const getCourseFrontPage = query('unchecked', async (courseId: string) =>
 });
 
 export const getConversations = query(async () => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const headers = canvasHeaders(apiKey);
 
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
+	const colorsPromise = fetchColors(instanceUrl, headers);
 
-	const headers = { Authorization: `Bearer ${apiKey}` };
-
-	const colorsPromise = fetch(`${instanceUrl}/api/v1/users/self/colors`, { headers })
-		.then(async (r) => {
-			if (!r.ok) return {} as CanvasColors;
-			try {
-				return (await r.json()) as CanvasColors;
-			} catch {
-				return {} as CanvasColors;
-			}
-		})
-		.catch(() => ({}) as CanvasColors);
-
-	// fetch all pages — Canvas caps per_page at 100, inbox can easily exceed 50
-	const perPage = '100';
-	let page = 1;
-	const allConversations: CanvasConversation[] = [];
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/conversations`);
-		url.searchParams.set('per_page', perPage);
-		url.searchParams.set('page', String(page));
-		url.searchParams.append('include[]', 'participant_avatars');
-		url.searchParams.set('scope', 'inbox');
-
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) {
-			error(res.status, 'Unable to load Canvas conversations');
-		}
-		const batch: CanvasConversation[] = await res.json();
-		allConversations.push(...batch);
-
-		const link = res.headers.get('Link') ?? res.headers.get('link');
-		const hasNext = link ? link.includes('rel="next"') : false;
-		if (hasNext) {
-			page += 1;
-			continue;
-		}
-		if (batch.length < Number(perPage)) break;
-		// fallback when Link header missing: stop when batch < perPage, else continue one more page
-		if (batch.length === 0) break;
-		page += 1;
-		if (page > 20) break; // safety cap ~2000 conversations
-	}
+	const baseUrl = new URL(`${instanceUrl}/api/v1/conversations`);
+	baseUrl.searchParams.append('include[]', 'participant_avatars');
+	baseUrl.searchParams.set('scope', 'inbox');
+	const allConversations = await fetchPaginated<CanvasConversation>(baseUrl, headers, {
+		maxPages: 20
+	});
 
 	const colors = await colorsPromise;
 
-	const conversations = allConversations;
-	return conversations.map((conv) => {
+	return allConversations.map((conv) => {
 		const participants = (conv.participants ?? []).map((p) => ({
 			id: p.id,
 			name: p.name ?? 'Unknown',
@@ -438,11 +270,8 @@ export const getConversations = query(async () => {
 export const replyToConversation = command(
 	'unchecked',
 	async (input: { conversationId: string; body: string }) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-		const parsedId = Number(input.conversationId);
-		if (!Number.isSafeInteger(parsedId) || parsedId <= 0) error(400, 'Invalid conversation ID');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const parsedId = parseId(input.conversationId, 'Invalid conversation ID');
 		const trimmed = input.body?.trim();
 		if (!trimmed) error(400, 'Message body is required');
 		if (trimmed.length > 20000) error(400, 'Message is too long');
@@ -450,7 +279,7 @@ export const replyToConversation = command(
 		const res = await fetch(url, {
 			method: 'POST',
 			headers: {
-				Authorization: `Bearer ${apiKey}`,
+				...canvasHeaders(apiKey),
 				'Content-Type': 'application/json',
 				Accept: 'application/json'
 			},
@@ -475,11 +304,8 @@ export const updateConversation = command(
 		starred?: boolean;
 		workflowState?: 'read' | 'unread' | 'archived';
 	}) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-		const parsedId = Number(input.conversationId);
-		if (!Number.isSafeInteger(parsedId) || parsedId <= 0) error(400, 'Invalid conversation ID');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const parsedId = parseId(input.conversationId, 'Invalid conversation ID');
 		const params = new URLSearchParams();
 		if (typeof input.starred === 'boolean')
 			params.set('conversation[starred]', String(input.starred));
@@ -488,7 +314,7 @@ export const updateConversation = command(
 		const res = await fetch(`${instanceUrl}/api/v1/conversations/${parsedId}`, {
 			method: 'PUT',
 			headers: {
-				Authorization: `Bearer ${apiKey}`,
+				...canvasHeaders(apiKey),
 				'Content-Type': 'application/x-www-form-urlencoded',
 				Accept: 'application/json'
 			},
@@ -506,14 +332,12 @@ export const updateConversation = command(
 export const bulkUpdateConversations = command(
 	'unchecked',
 	async (input: { conversationIds: string[]; workflowState: 'read' | 'unread' | 'archived' }) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
 		if (!Array.isArray(input.conversationIds) || input.conversationIds.length === 0)
 			error(400, 'No conversation IDs provided');
 		if (input.conversationIds.length > 200) error(400, 'Too many conversations');
 		const headers = {
-			Authorization: `Bearer ${apiKey}`,
+			...canvasHeaders(apiKey),
 			'Content-Type': 'application/x-www-form-urlencoded',
 			Accept: 'application/json'
 		};
@@ -540,22 +364,14 @@ export const bulkUpdateConversations = command(
 );
 
 export const getConversation = query('unchecked', async (conversationId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedId = Number(conversationId);
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
-	if (!Number.isSafeInteger(parsedId) || parsedId <= 0) {
-		error(400, 'Invalid conversation ID');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedId = parseId(conversationId, 'Invalid conversation ID');
 
 	const url = new URL(`${instanceUrl}/api/v1/conversations/${parsedId}`);
 	url.searchParams.append('include[]', 'participant_avatars');
 	url.searchParams.set('auto_mark_as_read', 'false');
 
-	const response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+	const response = await fetch(url, { headers: canvasHeaders(apiKey) });
 
 	if (!response.ok) {
 		error(response.status, 'Unable to load conversation');
@@ -590,110 +406,16 @@ export const getConversation = query('unchecked', async (conversationId: string)
 	};
 });
 
-interface CanvasCalendarEvent {
-	id: number | string;
-	title?: string | null;
-	description?: string | null;
-	start_at?: string | null;
-	end_at?: string | null;
-	all_day?: boolean;
-	all_day_date?: string | null;
-	context_code?: string | null;
-	context_name?: string | null;
-	workflow_state?: string;
-	hidden?: boolean;
-	url?: string | null;
-	html_url?: string | null;
-	type?: string;
-	assignment?: {
-		id?: number;
-		name?: string | null;
-		due_at?: string | null;
-		html_url?: string | null;
-		description?: string | null;
-		points_possible?: number | null;
-	} | null;
-	important_dates?: boolean;
-}
-
-interface CanvasPlannerItem {
-	plannable_id: number | string;
-	plannable_type: string;
-	plannable_date?: string | null;
-	html_url?: string | null;
-	context_name?: string | null;
-	context_type?: string | null;
-	course_id?: number | null;
-	plannable?: {
-		title?: string | null;
-		due_at?: string | null;
-		todo_date?: string | null;
-		start_at?: string | null;
-		end_at?: string | null;
-		details?: string | null;
-		description?: string | null;
-		points_possible?: number | null;
-	};
-	new_activity?: boolean;
-	planner_override?: unknown;
-	submissions?: unknown;
-}
-
 export const getCalendarEvents = query(
 	'unchecked',
 	async (opts: { start: string; end: string }) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/\/$/, '');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const headers = canvasHeaders(apiKey);
 
-		if (!apiKey || !instanceUrl) {
-			error(500, 'Canvas is not configured');
-		}
+		const colorsPromise = fetchColors(instanceUrl, headers);
 
-		const headers = { Authorization: `Bearer ${apiKey}` };
-
-		const colorsPromise: Promise<CanvasColors> = fetch(`${instanceUrl}/api/v1/users/self/colors`, {
-			headers
-		})
-			.then(async (r) => {
-				if (!r.ok) return {} as CanvasColors;
-				try {
-					return (await r.json()) as CanvasColors;
-				} catch {
-					return {} as CanvasColors;
-				}
-			})
-			.catch(() => ({}) as CanvasColors);
-
-		// Fetch calendar_events and planner items in parallel, collecting paginated results
 		async function fetchPaged<T>(baseUrl: URL): Promise<T[]> {
-			const all: T[] = [];
-			let page = 1;
-			while (true) {
-				const url = new URL(baseUrl.toString());
-				url.searchParams.set('per_page', '100');
-				url.searchParams.set('page', String(page));
-				const res = await fetch(url, { headers });
-				if (!res.ok) {
-					// For calendar, 401/403 should surface; for other ranges just break with what we have
-					if (all.length === 0) error(res.status, 'Unable to load calendar events');
-					break;
-				}
-				const batch: T[] = await res.json();
-				// Canvas sometimes returns object with error outside array — bail
-				if (!Array.isArray(batch)) break;
-				all.push(...batch);
-				const link = res.headers.get('Link') ?? res.headers.get('link');
-				const hasNext = link ? link.includes('rel="next"') : false;
-				if (hasNext) {
-					page += 1;
-					continue;
-				}
-				if (batch.length < 100) break;
-				if (batch.length === 0) break;
-				page += 1;
-				if (page > 20) break;
-			}
-			return all;
+			return fetchPaginated<T>(baseUrl, headers, { maxPages: 20 });
 		}
 
 		const calUrl = new URL(`${instanceUrl}/api/v1/calendar_events`);
@@ -701,7 +423,6 @@ export const getCalendarEvents = query(
 		calUrl.searchParams.set('start_date', opts.start);
 		calUrl.searchParams.set('end_date', opts.end);
 		calUrl.searchParams.set('per_page', '100');
-		// include assignment details and context
 		calUrl.searchParams.append('type', 'assignment');
 		calUrl.searchParams.append('type', 'calendar_event');
 		calUrl.searchParams.append('type', 'appointment_group');
@@ -719,7 +440,6 @@ export const getCalendarEvents = query(
 		]);
 
 		const seen = new Set<string>();
-		// Normalize calendar events
 		const fromCalendar = calendarEvents
 			.filter((e) => !e.hidden)
 			.map((e) => {
@@ -727,7 +447,6 @@ export const getCalendarEvents = query(
 				const courseMatch = contextCode?.match(/^course_(\d+)/);
 				const courseId = courseMatch ? courseMatch[1] : null;
 				const isAssignment = e.type === 'assignment' || !!e.assignment;
-				// assignment due_at takes precedence, otherwise start_at / all_day_date
 				const assignmentDue = e.assignment?.due_at ?? null;
 				const start =
 					assignmentDue ??
@@ -803,133 +522,13 @@ export const getCalendarEvents = query(
 	}
 );
 
-interface CanvasAnnouncementTopic {
-	id: number;
-	title?: string | null;
-	message?: string | null;
-	posted_at?: string | null;
-	last_reply_at?: string | null;
-	created_at?: string | null;
-	author?: {
-		display_name?: string | null;
-		avatar_image_url?: string | null;
-		id?: number | null;
-	} | null;
-	reply_count?: number;
-	html_url?: string | null;
-	url?: string | null;
-	read_state?: string | null;
-	is_announcement?: boolean;
-}
-
-interface CanvasAssignment {
-	id: number;
-	name?: string | null;
-	description?: string | null;
-	due_at?: string | null;
-	points_possible?: number | null;
-	html_url?: string | null;
-	submission_types?: string[] | null;
-	workflow_state?: string | null;
-	published?: boolean | null;
-	lock_at?: string | null;
-	unlock_at?: string | null;
-	grading_type?: string | null;
-}
-
-interface CanvasSubmission {
-	id: number;
-	score?: number | null;
-	grade?: string | null;
-	graded_at?: string | null;
-	submitted_at?: string | null;
-	workflow_state?: string | null;
-	excused?: boolean | null;
-	assignment?: CanvasAssignment | null;
-}
-
-interface CanvasDiscussion {
-	id: number;
-	title?: string | null;
-	message?: string | null;
-	posted_at?: string | null;
-	last_reply_at?: string | null;
-	created_at?: string | null;
-	author?: { display_name?: string | null; avatar_image_url?: string | null } | null;
-	discussion_type?: string | null;
-	reply_count?: number | null;
-	discussion_subentry_count?: number | null;
-	html_url?: string | null;
-	published?: boolean | null;
-	locked?: boolean | null;
-	is_announcement?: boolean | null;
-}
-
-interface CanvasCourseUser {
-	id: number;
-	name?: string | null;
-	short_name?: string | null;
-	sortable_name?: string | null;
-	avatar_url?: string | null;
-	enrollments?:
-		{ type?: string | null; role?: string | null; enrollment_state?: string | null }[] | null;
-	pronouns?: string | null;
-	login_id?: string | null;
-	email?: string | null;
-}
-
-interface CanvasWikiPageListItem {
-	url: string;
-	title?: string | null;
-	created_at?: string | null;
-	updated_at?: string | null;
-	front_page?: boolean | null;
-	html_url?: string | null;
-	page_id?: number | null;
-	published?: boolean | null;
-}
-
-interface CanvasCollaboration {
-	id: number;
-	title?: string | null;
-	collaboration_type?: string | null;
-	url?: string | null;
-	created_at?: string | null;
-	updated_at?: string | null;
-	user_id?: number | null;
-}
-
-interface CanvasCourseDetails {
-	id: number;
-	name?: string | null;
-	syllabus_body?: string | null;
-	html_url?: string | null;
-	course_code?: string | null;
-}
-
 export const getCourseAnnouncements = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
-	const data: CanvasAnnouncementTopic[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
-		url.searchParams.set('only_announcements', 'true');
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) error(res.status, 'Unable to load announcements');
-		const batch: CanvasAnnouncementTopic[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		data.push(...batch);
-		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
-		if (batch.length === 0 || page >= 20) break;
-		page += 1;
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const headers = canvasHeaders(apiKey);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+	baseUrl.searchParams.set('only_announcements', 'true');
+	const data = await fetchPaginated<CanvasAnnouncementTopic>(baseUrl, headers);
 	return data.map((a) => ({
 		id: a.id,
 		title: a.title ?? '(No subject)',
@@ -944,31 +543,13 @@ export const getCourseAnnouncements = query('unchecked', async (courseId: string
 });
 
 export const getCourseGrades = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 
-	const submissions: CanvasSubmission[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(
-			`${instanceUrl}/api/v1/courses/${parsedCourseId}/students/submissions`
-		);
-		url.searchParams.append('student_ids[]', 'self');
-		url.searchParams.append('include[]', 'assignment');
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
-		if (!res.ok) error(res.status, 'Unable to load grades');
-		const batch: CanvasSubmission[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		submissions.push(...batch);
-		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
-		if (batch.length === 0 || page >= 20) break;
-		page += 1;
-	}
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/students/submissions`);
+	baseUrl.searchParams.append('student_ids[]', 'self');
+	baseUrl.searchParams.append('include[]', 'assignment');
+	const submissions = await fetchPaginated<CanvasSubmission>(baseUrl, canvasHeaders(apiKey));
 
 	return submissions
 		.filter((submission) => submission.assignment)
@@ -988,35 +569,11 @@ export const getCourseGrades = query('unchecked', async (courseId: string) => {
 });
 
 export const getCourseAssignments = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
-	const assignments: CanvasAssignment[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments`);
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		url.searchParams.set('order_by', 'due_at');
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) error(res.status, 'Unable to load assignments');
-		const batch: CanvasAssignment[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		assignments.push(...batch);
-		const link = res.headers.get('Link') ?? res.headers.get('link');
-		const hasNext = link ? link.includes('rel="next"') : false;
-		if (hasNext) {
-			page += 1;
-			continue;
-		}
-		if (batch.length < 100) break;
-		if (batch.length === 0) break;
-		page += 1;
-		if (page > 20) break;
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments`);
+	baseUrl.searchParams.set('order_by', 'due_at');
+	const assignments = await fetchPaginated<CanvasAssignment>(baseUrl, canvasHeaders(apiKey));
 	return assignments.map((a) => ({
 		id: a.id,
 		name: a.name ?? 'Untitled',
@@ -1033,27 +590,10 @@ export const getCourseAssignments = query('unchecked', async (courseId: string) 
 });
 
 export const getCourseDiscussions = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
-	const data: CanvasDiscussion[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) error(res.status, 'Unable to load discussions');
-		const batch: CanvasDiscussion[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		data.push(...batch);
-		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
-		if (batch.length === 0 || page >= 20) break;
-		page += 1;
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/discussion_topics`);
+	const data = await fetchPaginated<CanvasDiscussion>(baseUrl, canvasHeaders(apiKey));
 	return data
 		.filter((d) => !d.is_announcement as unknown as boolean)
 		.map((d) => ({
@@ -1072,36 +612,12 @@ export const getCourseDiscussions = query('unchecked', async (courseId: string) 
 });
 
 export const getCoursePeople = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
-	const people: CanvasCourseUser[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/users`);
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		url.searchParams.append('include[]', 'enrollments');
-		url.searchParams.append('include[]', 'avatar_url');
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) error(res.status, 'Unable to load people');
-		const batch: CanvasCourseUser[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		people.push(...batch);
-		const link = res.headers.get('Link') ?? res.headers.get('link');
-		const hasNext = link ? link.includes('rel="next"') : false;
-		if (hasNext) {
-			page += 1;
-			continue;
-		}
-		if (batch.length < 100) break;
-		if (batch.length === 0) break;
-		page += 1;
-		if (page > 20) break;
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/users`);
+	baseUrl.searchParams.append('include[]', 'enrollments');
+	baseUrl.searchParams.append('include[]', 'avatar_url');
+	const people = await fetchPaginated<CanvasCourseUser>(baseUrl, canvasHeaders(apiKey));
 	return people.map((p) => ({
 		id: p.id,
 		name: p.name ?? p.short_name ?? 'Unknown',
@@ -1116,20 +632,19 @@ export const getCoursePeople = query('unchecked', async (courseId: string) => {
 });
 
 export const getCoursePages = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const headers = canvasHeaders(apiKey);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages`);
+	baseUrl.searchParams.set('sort', 'title');
+	// Custom handling for 404 → empty list
 	const pages: CanvasWikiPageListItem[] = [];
 	let page = 1;
 	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages`);
+		const url = new URL(baseUrl.toString());
 		url.searchParams.set('per_page', '100');
 		url.searchParams.set('page', String(page));
-		url.searchParams.set('sort', 'title');
-		const res: Response = await fetch(url, { headers });
+		const res = await fetch(url, { headers });
 		if (!res.ok) {
 			if (res.status === 404) return [];
 			error(res.status, 'Unable to load pages');
@@ -1138,8 +653,7 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 		if (!Array.isArray(batch)) break;
 		pages.push(...batch);
 		const link = res.headers.get('Link') ?? res.headers.get('link');
-		const hasNext = link ? link.includes('rel="next"') : false;
-		if (hasNext) {
+		if (hasNextPage(link)) {
 			page += 1;
 			continue;
 		}
@@ -1162,17 +676,13 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 export const getCoursePage = query(
 	'unchecked',
 	async (args: { courseId: string; pageUrl: string }) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		const parsedCourseId = Number(args.courseId);
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
-			error(400, 'Invalid course ID');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const parsedCourseId = parseCourseId(args.courseId);
 		if (!args.pageUrl.trim()) error(400, 'Invalid page URL');
 
 		const response = await fetch(
 			`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages/${encodeURIComponent(args.pageUrl)}`,
-			{ headers: { Authorization: `Bearer ${apiKey}` } }
+			{ headers: canvasHeaders(apiKey) }
 		);
 		if (!response.ok) error(response.status, 'Unable to load page');
 		const page: CanvasWikiPageListItem & CanvasPage = await response.json();
@@ -1191,15 +701,11 @@ export const getCoursePage = query(
 export const getCoursePageBodies = query(
 	'unchecked',
 	async (args: { courseId: string; pageUrls: string[] }) => {
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		const parsedCourseId = Number(args.courseId);
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
-			error(400, 'Invalid course ID');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const parsedCourseId = parseCourseId(args.courseId);
 		if (args.pageUrls.length > 1000) error(400, 'Too many page URLs');
 
-		const headers = { Authorization: `Bearer ${apiKey}` };
+		const headers = canvasHeaders(apiKey);
 		const bodies: Record<string, string> = {};
 		let failed = 0;
 		for (let index = 0; index < args.pageUrls.length; index += 10) {
@@ -1228,18 +734,12 @@ export const getCourseAssignment = query(
 	'unchecked',
 	async (args: { courseId: string; assignmentId: string }) => {
 		const { courseId, assignmentId } = args;
-		const apiKey = env.CANVAS_API_KEY;
-		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-		const parsedCourseId = Number(courseId);
-		const parsedAssignmentId = Number(assignmentId);
-		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
-			error(400, 'Invalid course ID');
-		if (!Number.isSafeInteger(parsedAssignmentId) || parsedAssignmentId <= 0)
-			error(400, 'Invalid assignment ID');
+		const { apiKey, instanceUrl } = requireCanvasEnv();
+		const parsedCourseId = parseCourseId(courseId);
+		const parsedAssignmentId = parseId(assignmentId, 'Invalid assignment ID');
 		const res = await fetch(
 			`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments/${parsedAssignmentId}`,
-			{ headers: { Authorization: `Bearer ${apiKey}` } }
+			{ headers: canvasHeaders(apiKey) }
 		);
 		if (!res.ok) error(res.status, 'Unable to load assignment');
 		const a: CanvasAssignment & {
@@ -1270,30 +770,11 @@ export const getCourseAssignment = query(
 );
 
 export const getCourseCollaborations = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
-	const headers = { Authorization: `Bearer ${apiKey}` };
-	const data: CanvasCollaboration[] = [];
-	let page = 1;
-	while (true) {
-		const url: URL = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/collaborations`);
-		url.searchParams.set('per_page', '100');
-		url.searchParams.set('page', String(page));
-		const res: Response = await fetch(url, { headers });
-		if (!res.ok) {
-			if (res.status === 404 || res.status === 403) return [];
-			error(res.status, 'Unable to load collaborations');
-		}
-		const batch: CanvasCollaboration[] = await res.json();
-		if (!Array.isArray(batch)) break;
-		data.push(...batch);
-		if (!(res.headers.get('Link') ?? '').includes('rel="next"') && batch.length < 100) break;
-		if (batch.length === 0 || page >= 20) break;
-		page += 1;
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const headers = canvasHeaders(apiKey);
+	const baseUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/collaborations`);
+	const data = await fetchPaginated<CanvasCollaboration>(baseUrl, headers);
 	return data.map((c) => ({
 		id: c.id,
 		title: c.title ?? 'Untitled',
@@ -1305,13 +786,10 @@ export const getCourseCollaborations = query('unchecked', async (courseId: strin
 });
 
 export const getCourseDetails = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 	const res = await fetch(`${instanceUrl}/api/v1/courses/${parsedCourseId}`, {
-		headers: { Authorization: `Bearer ${apiKey}` }
+		headers: canvasHeaders(apiKey)
 	});
 	if (!res.ok) error(res.status, 'Unable to load course details');
 	const course: CanvasCourseDetails = await res.json();
@@ -1325,14 +803,11 @@ export const getCourseDetails = query('unchecked', async (courseId: string) => {
 });
 
 export const getCourseChatLaunch = query('unchecked', async (courseId: string) => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-	const parsedCourseId = Number(courseId);
-	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
-	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
 	const res = await fetch(
 		`${instanceUrl}/api/v1/courses/${parsedCourseId}/external_tools/sessionless_launch?id=2&launch_type=course_navigation`,
-		{ headers: { Authorization: `Bearer ${apiKey}` } }
+		{ headers: canvasHeaders(apiKey) }
 	);
 	if (!res.ok) {
 		if (res.status === 404) return { url: null, name: 'Chat' };
@@ -1346,15 +821,10 @@ export const getCourseChatLaunch = query('unchecked', async (courseId: string) =
 });
 
 export const getCanvasUser = query(async () => {
-	const apiKey = env.CANVAS_API_KEY;
-	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
-
-	if (!apiKey || !instanceUrl) {
-		error(500, 'Canvas is not configured');
-	}
+	const { apiKey, instanceUrl } = requireCanvasEnv();
 
 	const response = await fetch(`${instanceUrl}/api/v1/users/self/profile`, {
-		headers: { Authorization: `Bearer ${apiKey}` }
+		headers: canvasHeaders(apiKey)
 	});
 
 	if (!response.ok) {

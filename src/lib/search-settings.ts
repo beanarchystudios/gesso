@@ -1,19 +1,13 @@
 import { browser } from '$app/environment';
-import Dexie, { type EntityTable } from 'dexie';
+import type { EntityTable } from 'dexie';
+import { createDexie } from './db';
+import type { SearchSettings } from './search-settings-types';
 
-export interface SearchSettings {
-	id: 'search';
-	enhancedSearchEnabled: boolean;
-	updatedAt: number;
-}
+export type { SearchSettings } from './search-settings-types';
 
-const db = browser
-	? (new Dexie('gesso-search') as Dexie & {
-			settings: EntityTable<SearchSettings, 'id'>;
-		})
-	: null;
-
-if (db) db.version(1).stores({ settings: '&id, updatedAt' });
+const db = createDexie<{ settings: EntityTable<SearchSettings, 'id'> }>('gesso-search', {
+	settings: '&id, updatedAt'
+});
 
 const enabledListeners = new Set<(enabled: boolean) => void>();
 
@@ -58,7 +52,6 @@ export async function setEnhancedSearchEnabled(enabled: boolean): Promise<void> 
 	});
 
 	notifyEnabledListeners(enabled);
-	// Notify subscribers in other tabs.
 	if (browser) {
 		try {
 			localStorage.setItem('gesso:enhancedSearch', enabled ? '1' : '0');

@@ -17,6 +17,7 @@ import {
 	getCourses,
 	getConversations
 } from './canvas';
+import { stripHtml } from './utils/html';
 
 export type SearchDocumentType =
 	| 'course'
@@ -93,22 +94,6 @@ export function subscribeStatus(cb: () => void) {
 
 export function getIndexingStatus() {
 	return { status, message: statusMessage, count: documentCount };
-}
-
-function stripHtml(value: string | null | undefined): string {
-	if (!value) return '';
-	// remove html tags naively
-	return value
-		.replace(/<[^>]*>/g, ' ')
-		.replace(/&nbsp;/g, ' ')
-		.replace(/&amp;/g, '&')
-		.replace(/&lt;/g, '<')
-		.replace(/&gt;/g, '>')
-		.replace(/&quot;/g, '"')
-		.replace(/&#39;/g, "'")
-		.replace(/\s+/g, ' ')
-		.trim()
-		.slice(0, 5000);
 }
 
 function toCourseHref(courseId: number | string) {
