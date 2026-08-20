@@ -10,7 +10,7 @@
 	<title>Dashboard | Gesso</title>
 </svelte:head>
 
-<main class="w-full overflow-y-auto p-6 xl:p-8 2xl:p-10">
+<main class="w-full overflow-y-auto p-4 xl:p-6 2xl:p-8">
 	{#await courses}
 		<div
 			class="grid grid-cols-1 gap-4 min-[1920px]:grid-cols-6 min-[2560px]:grid-cols-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
