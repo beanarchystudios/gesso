@@ -5,7 +5,7 @@
 	import { Search01Icon, Cancel01Icon, Megaphone01Icon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let announcements = $state<Awaited<ReturnType<typeof getCourseAnnouncements>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);

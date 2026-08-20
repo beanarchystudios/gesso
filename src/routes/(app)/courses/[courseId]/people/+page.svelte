@@ -7,7 +7,7 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let people = $state<Awaited<ReturnType<typeof getCoursePeople>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);

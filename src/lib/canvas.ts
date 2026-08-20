@@ -16,6 +16,7 @@ import {
 	getCourseDetails as fetchCourseDetails,
 	getCourseDiscussions as fetchCourseDiscussions,
 	getCoursePages as fetchCoursePages,
+	getCoursePageBodies as fetchCoursePageBodies,
 	getCoursePeople as fetchCoursePeople,
 	getCourses as fetchCourses,
 	getCourseFrontPage as fetchCourseFrontPage,
@@ -139,6 +140,10 @@ export function getCoursePeople(courseId: string) {
 
 export function getCoursePages(courseId: string) {
 	return cached(`course:${courseId}:pages`, () => fetchCoursePages(courseId));
+}
+
+export function getCoursePageBodies(courseId: string, pageUrls: string[]) {
+	return fetchCoursePageBodies({ courseId, pageUrls });
 }
 
 export function getCourseCollaborations(courseId: string) {

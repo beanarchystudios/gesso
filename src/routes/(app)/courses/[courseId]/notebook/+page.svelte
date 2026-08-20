@@ -10,7 +10,7 @@
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
-	let query = $state('');
+	let query = $state(page.url.searchParams.get('q') ?? '');
 	let pages = $state<Awaited<ReturnType<typeof getCoursePages>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
