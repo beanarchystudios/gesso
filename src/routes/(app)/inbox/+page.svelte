@@ -770,7 +770,7 @@
 		</div>
 
 		<div
-			class="mx-auto w-full max-w-3xl px-4 pt-4 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-6xl 2xl:px-8"
+			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-6xl 2xl:px-8"
 		>
 			{#if loading}
 				<div

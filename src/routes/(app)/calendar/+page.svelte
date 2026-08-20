@@ -243,22 +243,22 @@
 				<div class="relative">
 					<HugeiconsIcon
 						icon={Search01Icon}
-						class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+						class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-foreground/60"
 					/>
 					<Input
 						bind:value={search}
 						placeholder="Search"
 						aria-label="Search events"
-						class="h-8 w-40 rounded-full pl-9 sm:w-56"
+						class="h-9 w-40 rounded-full border border-border/40 bg-background/85 pr-9 pl-9 shadow-sm backdrop-blur-2xl supports-[backdrop-filter]:bg-background/85 sm:w-56"
 					/>
 					{#if search}
 						<button
 							type="button"
 							aria-label="Clear search"
 							onclick={() => (search = '')}
-							class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+							class="absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
 						>
-							<HugeiconsIcon icon={Cancel01Icon} class="size-3.5" />
+							<HugeiconsIcon icon={Cancel01Icon} class="size-4" />
 						</button>
 					{/if}
 				</div>

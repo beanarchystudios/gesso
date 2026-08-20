@@ -69,7 +69,7 @@
 <main class="flex size-full flex-col overflow-hidden bg-background">
 	<div bind:this={scrollEl} class="flex-1 overflow-y-auto">
 		<div class="sticky top-0 z-10 px-4 py-4 xl:px-6 2xl:px-8">
-			<div class="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-7xl">
+			<div class="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
 				<div class="relative">
 					<HugeiconsIcon
 						icon={Search01Icon}
@@ -99,7 +99,7 @@
 		</div>
 
 		<div
-			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-7xl 2xl:px-8"
+			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-6xl 2xl:px-8"
 		>
 			{#if loading}
 				<div class="space-y-3">

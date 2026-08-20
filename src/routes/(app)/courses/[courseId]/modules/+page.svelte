@@ -144,33 +144,6 @@
 		return labels[type] ?? type.replace(/([a-z])([A-Z])/g, '$1 $2');
 	}
 
-	function itemMediaClasses(type: string) {
-		const t = type.toLowerCase();
-		// Distinct Tailwind tint per Canvas item type — subtle bg with colored icon/border, works in light + dark
-		if (t === 'file' || t === 'attachment' || t.includes('file')) {
-			return 'border border-blue-500/20 bg-blue-500/10 text-blue-600 dark:border-blue-400/20 dark:bg-blue-500/15 dark:text-blue-400';
-		}
-		if (t === 'assignment' || t.includes('assign')) {
-			return 'border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/15 dark:text-amber-400';
-		}
-		if (t === 'quiz' || t.includes('quiz')) {
-			return 'border border-violet-500/20 bg-violet-500/10 text-violet-600 dark:border-violet-400/20 dark:bg-violet-500/15 dark:text-violet-400';
-		}
-		if (t === 'page' || t === 'wikipage' || t.includes('page')) {
-			return 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:border-emerald-400/20 dark:bg-emerald-500/15 dark:text-emerald-400';
-		}
-		if (t === 'discussion' || t.includes('discussion')) {
-			return 'border border-sky-500/20 bg-sky-500/10 text-sky-600 dark:border-sky-400/20 dark:bg-sky-500/15 dark:text-sky-400';
-		}
-		if (t === 'externalurl' || t === 'externaltool' || t.includes('external')) {
-			return 'border border-orange-500/20 bg-orange-500/10 text-orange-600 dark:border-orange-400/20 dark:bg-orange-500/15 dark:text-orange-400';
-		}
-		if (t === 'video' || t === 'mediaobject' || t.includes('media') || t.includes('video')) {
-			return 'border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:border-rose-400/20 dark:bg-rose-500/15 dark:text-rose-400';
-		}
-		return 'border border-zinc-500/15 bg-zinc-500/10 text-zinc-600 dark:border-zinc-400/15 dark:bg-zinc-500/15 dark:text-zinc-400';
-	}
-
 	function formatDue(iso: string | null) {
 		if (!iso) return null;
 		const d = new Date(iso);
@@ -246,22 +219,22 @@
 					<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 					{#each Array(3) as _, i (i)}
 						<div class="overflow-hidden rounded-xl border bg-card">
-							<div class="flex items-center gap-3 bg-muted/40 px-4 py-3">
-								<div class="size-8 shrink-0 animate-pulse rounded-lg bg-background"></div>
-								<div class="min-w-0 flex-1 space-y-2">
-									<div class="h-4 w-2/3 animate-pulse rounded bg-muted"></div>
-									<div class="h-3 w-20 animate-pulse rounded bg-muted/60"></div>
+							<div class="flex items-center gap-2 bg-muted/40 px-3 py-2">
+								<div class="size-3.5 shrink-0 animate-pulse rounded bg-muted/60"></div>
+								<div class="min-w-0 flex-1 space-y-1">
+									<div class="h-3 w-2/3 animate-pulse rounded bg-muted"></div>
+									<div class="h-2 w-20 animate-pulse rounded bg-muted/60"></div>
 								</div>
-								<div class="size-4 shrink-0 animate-pulse rounded bg-muted/40"></div>
+								<div class="size-3 shrink-0 animate-pulse rounded bg-muted/40"></div>
 							</div>
-							<div class="divide-y divide-border border-t bg-card">
+							<div class="divide-y divide-border/50 border-t bg-card">
 								<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
 								{#each Array(3) as _, j (j)}
-									<div class="flex items-center gap-3 px-4 py-3">
-										<div class="size-8 shrink-0 animate-pulse rounded-lg bg-muted/60"></div>
-										<div class="flex-1 space-y-1.5">
-											<div class="h-3 w-3/4 animate-pulse rounded bg-muted"></div>
-											<div class="h-2.5 w-24 animate-pulse rounded bg-muted/40"></div>
+									<div class="flex items-center gap-2 px-3 py-2">
+										<div class="size-3.5 shrink-0 animate-pulse rounded bg-muted/60"></div>
+										<div class="flex-1 space-y-1">
+											<div class="h-2.5 w-3/4 animate-pulse rounded bg-muted"></div>
+											<div class="h-2 w-20 animate-pulse rounded bg-muted/40"></div>
 										</div>
 									</div>
 								{/each}
@@ -309,19 +282,20 @@
 							<button
 								type="button"
 								onclick={() => toggleModule(mod.id)}
-								class="flex w-full cursor-pointer items-center gap-3 bg-muted/40 px-4 py-3 text-left transition-colors hover:bg-muted/60"
+								class="flex w-full cursor-pointer items-center gap-2 bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted/60"
 								aria-expanded={isExpanded}
 							>
-								<span
-									class="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background text-foreground/70"
-								>
-									<HugeiconsIcon icon={Folder01Icon} class="size-3.5" />
-								</span>
+								<HugeiconsIcon
+									icon={Folder01Icon}
+									class="size-3.5 shrink-0 text-muted-foreground"
+								/>
 								<span class="min-w-0 flex-1">
-									<span class="block truncate text-sm leading-snug font-normal">{mod.name}</span>
+									<span class="block truncate text-[13px] leading-tight font-medium"
+										>{mod.name}</span
+									>
 									{#if mod.requireSequentialProgress || mod.prerequisiteModuleIds.length > 0}
 										<span
-											class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"
+											class="flex flex-wrap items-center gap-1 text-[11px] leading-none text-muted-foreground"
 										>
 											{#if mod.requireSequentialProgress}
 												<span>Sequential order</span>
@@ -337,16 +311,16 @@
 								</span>
 								<HugeiconsIcon
 									icon={ChevronDownIcon}
-									class="size-4 shrink-0 text-foreground/40 transition-transform duration-150 {isExpanded
+									class="size-3 shrink-0 text-foreground/40 transition-transform duration-150 {isExpanded
 										? 'rotate-180'
 										: 'rotate-0'}"
 								/>
 							</button>
 
 							{#if isExpanded}
-								<div class="divide-y divide-border border-t bg-card">
+								<div class="divide-y divide-border/50 border-t bg-card">
 									{#if mod.items.length === 0}
-										<p class="px-4 py-6 text-center text-sm text-muted-foreground">
+										<p class="px-3 py-3 text-center text-xs text-muted-foreground">
 											No items in this module.
 										</p>
 									{:else}
@@ -356,11 +330,11 @@
 											{@const target = itemTarget(item)}
 											{#if isSubHeader}
 												<div
-													class="bg-muted/20 px-4 py-2.5"
-													style:padding-left="{16 + Math.min(item.indent, 3) * 16}px"
+													class="bg-muted/20 px-3 py-2"
+													style:padding-left="{12 + Math.min(item.indent, 3) * 12}px"
 												>
 													<p
-														class="text-xs font-normal tracking-widest text-foreground/60 uppercase"
+														class="text-[11px] font-medium tracking-widest text-foreground/60 uppercase"
 													>
 														{item.title}
 													</p>
@@ -371,25 +345,22 @@
 													href={target.href}
 													target="_blank"
 													rel="external noreferrer"
-													class="group flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40"
-													style:padding-left="{16 + Math.min(item.indent, 3) * 16}px"
+													class="group flex items-center gap-2 px-3 py-2 hover:bg-muted/40"
+													style:padding-left="{12 + Math.min(item.indent, 3) * 12}px"
 												>
-													<span
-														class="flex size-8 shrink-0 items-center justify-center rounded-lg {itemMediaClasses(
-															item.type
-														)}"
-													>
-														<HugeiconsIcon icon={itemIcon(item.type)} class="size-4" />
-													</span>
+													<HugeiconsIcon
+														icon={itemIcon(item.type)}
+														class="size-3.5 shrink-0 text-muted-foreground"
+													/>
 													<span class="min-w-0 flex-1">
-														<span class="block truncate text-sm leading-snug font-normal"
+														<span class="block truncate text-[13px] leading-tight font-normal"
 															>{item.title}</span
 														>
 														<span
-															class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"
+															class="flex flex-wrap items-center gap-1 text-[11px] leading-none text-muted-foreground"
 														>
 															<span
-																class="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-normal"
+																class="inline-flex items-center rounded bg-muted px-1 py-0 font-normal"
 																>{itemTypeLabel(item.type)}</span
 															>
 															{#if item.pointsPossible != null}
@@ -416,32 +387,29 @@
 													</span>
 													<HugeiconsIcon
 														icon={ExternalLinkIcon}
-														class="size-3.5 shrink-0 text-foreground/30 group-hover:text-foreground/60"
+														class="size-3 shrink-0 text-foreground/30 group-hover:text-foreground/60"
 													/>
 												</a>
 											{:else if target}
 												<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 												<a
 													href={target.href}
-													class="group flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40"
-													style:padding-left="{16 + Math.min(item.indent, 3) * 16}px"
+													class="group flex items-center gap-2 px-3 py-2 hover:bg-muted/40"
+													style:padding-left="{12 + Math.min(item.indent, 3) * 12}px"
 												>
-													<span
-														class="flex size-8 shrink-0 items-center justify-center rounded-lg {itemMediaClasses(
-															item.type
-														)}"
-													>
-														<HugeiconsIcon icon={itemIcon(item.type)} class="size-4" />
-													</span>
+													<HugeiconsIcon
+														icon={itemIcon(item.type)}
+														class="size-3.5 shrink-0 text-muted-foreground"
+													/>
 													<span class="min-w-0 flex-1">
-														<span class="block truncate text-sm leading-snug font-normal"
+														<span class="block truncate text-[13px] leading-tight font-normal"
 															>{item.title}</span
 														>
 														<span
-															class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"
+															class="flex flex-wrap items-center gap-1 text-[11px] leading-none text-muted-foreground"
 														>
 															<span
-																class="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-normal"
+																class="inline-flex items-center rounded bg-muted px-1 py-0 font-normal"
 																>{itemTypeLabel(item.type)}</span
 															>
 															{#if item.pointsPossible != null}
@@ -468,30 +436,27 @@
 													</span>
 													<HugeiconsIcon
 														icon={ChevronDownIcon}
-														class="size-3.5 shrink-0 -rotate-90 text-foreground/30 group-hover:text-foreground/60"
+														class="size-3 shrink-0 -rotate-90 text-foreground/30 group-hover:text-foreground/60"
 													/>
 												</a>
 											{:else}
 												<div
-													class="flex items-center gap-3 px-4 py-3.5"
-													style:padding-left="{16 + Math.min(item.indent, 3) * 16}px"
+													class="flex items-center gap-2 px-3 py-2"
+													style:padding-left="{12 + Math.min(item.indent, 3) * 12}px"
 												>
-													<span
-														class="flex size-8 shrink-0 items-center justify-center rounded-lg {itemMediaClasses(
-															item.type
-														)}"
-													>
-														<HugeiconsIcon icon={itemIcon(item.type)} class="size-4" />
-													</span>
+													<HugeiconsIcon
+														icon={itemIcon(item.type)}
+														class="size-3.5 shrink-0 text-muted-foreground"
+													/>
 													<span class="min-w-0 flex-1">
-														<span class="block truncate text-sm leading-snug font-normal"
+														<span class="block truncate text-[13px] leading-tight font-normal"
 															>{item.title}</span
 														>
 														<span
-															class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground"
+															class="flex flex-wrap items-center gap-1 text-[11px] leading-none text-muted-foreground"
 														>
 															<span
-																class="inline-flex items-center rounded-full bg-muted px-2 py-0.5 font-normal"
+																class="inline-flex items-center rounded bg-muted px-1 py-0 font-normal"
 																>{itemTypeLabel(item.type)}</span
 															>
 															{#if item.pointsPossible != null}
