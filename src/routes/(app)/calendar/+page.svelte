@@ -174,7 +174,7 @@
 	<title>Calendar | Gesso</title>
 </svelte:head>
 
-<main class="flex size-full flex-col overflow-hidden">
+<main class="flex size-full min-h-0 flex-col overflow-hidden">
 	<!-- header -->
 	<div class="shrink-0 border-b px-4 py-3 sm:px-6">
 		<div class="flex items-center justify-between gap-3">
@@ -288,7 +288,7 @@
 							</div>
 						{/each}
 					</div>
-					<div class="grid flex-1 auto-rows-fr grid-cols-7">
+					<div class="grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-hidden">
 						{#each matrix.flat() as day (day.toISOString())}
 							{@const today = isToday(day)}
 							{@const inMonth = day.getMonth() === cursor.getMonth()}
@@ -353,7 +353,7 @@
 
 		<!-- selected day agenda -->
 		<div
-			class="flex w-full shrink-0 flex-col border-t border-l-0! lg:w-[360px] lg:border-s lg:border-t-0 xl:w-[400px] 2xl:w-[440px]"
+			class="flex min-h-0 w-full shrink-0 flex-col overflow-hidden border-t border-l-0! lg:w-[360px] lg:border-s lg:border-t-0 xl:w-[400px] 2xl:w-[440px]"
 		>
 			<div class="shrink-0 px-5 py-4">
 				<p class="text-sm font-semibold">

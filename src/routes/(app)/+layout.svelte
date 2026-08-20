@@ -19,19 +19,19 @@
 		<AppSidebar />
 		{#if courses}
 			{#await courses}
-				<Sidebar.Inset class="max-h-[calc(100vh-1rem)] overflow-hidden">
+				<Sidebar.Inset class="h-svh min-h-0 overflow-hidden md:h-[calc(100svh-1rem)]">
 					{@render children()}
 				</Sidebar.Inset>
 			{:then courses}
 				<Sidebar.Inset
 					style={`--course-color: ${courses.find((course) => course.id.toString() === courseId)?.color ?? 'var(--primary)'}`}
-					class="max-h-[calc(100vh-1rem)] overflow-hidden ring-1 ring-(--course-color)/75"
+					class="h-svh min-h-0 overflow-hidden ring-1 ring-(--course-color)/75 md:h-[calc(100svh-1rem)]"
 				>
 					{@render children()}
 				</Sidebar.Inset>
 			{/await}
 		{:else}
-			<Sidebar.Inset class="max-h-[calc(100vh-1rem)] overflow-hidden">
+			<Sidebar.Inset class="h-svh min-h-0 overflow-hidden md:h-[calc(100svh-1rem)]">
 				{@render children()}
 			</Sidebar.Inset>
 		{/if}
