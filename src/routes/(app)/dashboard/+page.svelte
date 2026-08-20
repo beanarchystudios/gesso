@@ -10,10 +10,10 @@
 	<title>Dashboard | Gesso</title>
 </svelte:head>
 
-<main class="w-full overflow-y-auto p-6">
+<main class="w-full overflow-y-auto p-6 xl:p-8 2xl:p-10">
 	{#await courses}
 		<div
-			class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
+			class="grid grid-cols-1 gap-4 min-[1920px]:grid-cols-6 min-[2560px]:grid-cols-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
 			aria-label="Loading favorite courses"
 		>
 			{#each Array(3) as _ (_)}
@@ -23,7 +23,7 @@
 	{:then courses}
 		{#if courses.length > 0}
 			<div
-				class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6"
+				class="grid grid-cols-1 gap-4 min-[1920px]:grid-cols-6 min-[2560px]:grid-cols-7 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
 			>
 				{#each courses as course (course.id)}
 					<a href={resolve('/(app)/courses/[courseId]', { courseId: course.id.toString() })}>

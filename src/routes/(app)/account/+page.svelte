@@ -13,7 +13,6 @@
 		UserIcon
 	} from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
-	import { SvelteMap } from 'svelte/reactivity';
 
 	const user = getCanvasUser();
 
@@ -22,17 +21,14 @@
 	let emailCopied = $state(false);
 	let emailHovered = $state(false);
 
-	const scrambleCache = new SvelteMap<string, string>();
-	function scrambleEmail(email: string): string {
-		if (!email || email === '—') return '—';
-		const pool = 'abcdefghijklmnopqrstuvwxyz0123456789';
-		return email.replace(/[a-zA-Z0-9]/g, () => pool[Math.floor(Math.random() * pool.length)]);
-	}
 	function getScrambled(email: string | null): string {
-		const value = email ?? '—';
-		if (value === '—') return value;
-		if (!scrambleCache.has(value)) scrambleCache.set(value, scrambleEmail(value));
-		return scrambleCache.get(value)!;
+		if (!email) return '—';
+		const pool = 'abcdefghijklmnopqrstuvwxyz0123456789';
+		let seed = 0;
+		for (let i = 0; i < email.length; i += 1) seed = (seed * 31 + email.charCodeAt(i)) >>> 0;
+		return email.replace(/[a-zA-Z0-9]/g, (character, offset) => {
+			return pool[(seed + character.charCodeAt(0) + offset * 17) % pool.length];
+		});
 	}
 
 	function initials(name: string) {
@@ -72,7 +68,7 @@
 </svelte:head>
 
 <main class="size-full overflow-y-auto">
-	<div class="mx-auto w-full max-w-3xl p-6 sm:p-8">
+	<div class="mx-auto w-full max-w-3xl p-6 sm:p-8 lg:max-w-4xl xl:max-w-5xl xl:px-8 2xl:max-w-6xl">
 		<header>
 			<h1 class="text-2xl font-semibold tracking-tight">Account</h1>
 		</header>

@@ -4,11 +4,15 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Search01Icon, Cancel01Icon, BubbleChatIcon } from '@hugeicons/core-free-icons';
 	import { HugeiconsIcon } from '@hugeicons/svelte';
+
 	let query = $state('');
 	let discussions = $state<Awaited<ReturnType<typeof getCourseDiscussions>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
+	let scrollEl: HTMLDivElement | undefined = $state(undefined);
+
 	const courseId = $derived(page.params.courseId!);
+
 	$effect(() => {
 		const id = courseId;
 		let cancelled = false;
@@ -30,6 +34,7 @@
 			cancelled = true;
 		};
 	});
+
 	function stripHtml(html: string) {
 		return html
 			.replace(/<[^>]*>/g, ' ')
@@ -38,12 +43,14 @@
 			.replace(/\s+/g, ' ')
 			.trim();
 	}
+
 	function formatDate(iso: string | null) {
 		if (!iso) return '';
 		const d = new Date(iso);
 		if (Number.isNaN(d.getTime())) return '';
 		return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 	}
+
 	const filtered = $derived.by(() => {
 		if (!discussions) return [];
 		const q = query.trim().toLowerCase();
@@ -58,33 +65,42 @@
 <svelte:head>
 	<title>Discussions | Gesso</title>
 </svelte:head>
+
 <main class="flex size-full flex-col overflow-hidden bg-background">
-	<div class="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-4">
-		<div class="relative shrink-0">
-			<HugeiconsIcon
-				icon={Search01Icon}
-				class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-foreground/60"
-			/>
-			<Input
-				bind:value={query}
-				placeholder="Search discussions"
-				aria-label="Search discussions"
-				class="h-9 rounded-full border border-border/40 bg-background pr-9 pl-9"
-				autocomplete="off"
-				disabled={loading}
-			/>
-			{#if query}
-				<button
-					type="button"
-					aria-label="Clear search"
-					onclick={() => (query = '')}
-					class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-				>
-					<HugeiconsIcon icon={Cancel01Icon} class="size-4" />
-				</button>
-			{/if}
+	<div bind:this={scrollEl} class="flex-1 overflow-y-auto">
+		<div class="sticky top-0 z-10 px-4 py-4 xl:px-6 2xl:px-8">
+			<div class="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-7xl">
+				<div class="relative">
+					<HugeiconsIcon
+						icon={Search01Icon}
+						class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-foreground/60"
+					/>
+					<Input
+						bind:value={query}
+						placeholder="Search"
+						aria-label="Search discussions"
+						class="h-9 rounded-full border border-border/40 bg-background/85 pr-9 pl-9 shadow-sm backdrop-blur-2xl supports-[backdrop-filter]:bg-background/85"
+						autocomplete="off"
+						spellcheck="false"
+						disabled={loading}
+					/>
+					{#if query}
+						<button
+							type="button"
+							aria-label="Clear search"
+							onclick={() => (query = '')}
+							class="absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+						>
+							<HugeiconsIcon icon={Cancel01Icon} class="size-4" />
+						</button>
+					{/if}
+				</div>
+			</div>
 		</div>
-		<div class="mt-4 flex-1 overflow-y-auto pb-6">
+
+		<div
+			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-7xl 2xl:px-8"
+		>
 			{#if loading}
 				<div class="space-y-3">
 					<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
@@ -103,7 +119,7 @@
 					<button
 						type="button"
 						onclick={() => location.reload()}
-						class="mt-4 text-sm font-medium text-primary hover:underline"
+						class="mt-4 text-sm font-medium text-chart-1 hover:underline"
 					>
 						Try again
 					</button>
@@ -121,14 +137,14 @@
 						<button
 							type="button"
 							onclick={() => (query = '')}
-							class="mt-3 text-sm font-medium text-primary hover:underline"
+							class="mt-3 text-sm font-medium text-chart-1 hover:underline"
 						>
 							Clear search
 						</button>
 					{/if}
 				</div>
 			{:else}
-				<div class="space-y-3">
+				<div class="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-4 2xl:gap-5">
 					{#each filtered as d (d.id)}
 						<article class="rounded-xl border bg-card p-4">
 							<h2 class="text-sm leading-snug font-semibold">{d.title}</h2>
@@ -147,7 +163,7 @@
 									href={d.htmlUrl}
 									target="_blank"
 									rel="external noreferrer"
-									class="mt-3 inline-block text-xs font-medium text-primary hover:underline"
+									class="mt-3 inline-block text-xs font-medium text-chart-1 hover:underline"
 								>
 									Open in Canvas
 								</a>

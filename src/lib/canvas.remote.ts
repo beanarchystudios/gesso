@@ -25,7 +25,9 @@ interface CanvasCourse {
 	image_download_url?: string;
 	workflow_state?: string;
 	is_favorite?: boolean;
-	term?: { name?: string };
+	term?: { name?: string; start_at?: string | null; end_at?: string | null };
+	start_at?: string | null;
+	end_at?: string | null;
 }
 
 interface CanvasColors {
@@ -116,9 +118,17 @@ export const getCourses = query(async () => {
 
 	const [activeCourses, completedCourses, colors]: [CanvasCourse[], CanvasCourse[], CanvasColors] =
 		await Promise.all([activeResponse.json(), completedResponse.json(), colorsResponse.json()]);
+	const courseDate = (course: CanvasCourse) => {
+		const value = course.end_at ?? course.term?.end_at ?? course.start_at ?? course.term?.start_at;
+		const timestamp = value ? Date.parse(value) : Number.NaN;
+		return Number.isNaN(timestamp) ? 0 : timestamp;
+	};
+	const recentCompletedCourses = [...completedCourses].sort(
+		(a, b) => courseDate(b) - courseDate(a) || b.id - a.id
+	);
 	return [
 		...activeCourses.map((course) => ({ course, previous: false })),
-		...completedCourses.map((course) => ({ course, previous: true }))
+		...recentCompletedCourses.map((course) => ({ course, previous: true }))
 	].map(({ course, previous }) => ({
 		id: course.id,
 		name: course.name ?? course.course_code ?? 'Untitled course',
@@ -189,7 +199,13 @@ export const getCourseTabs = query('unchecked', async (courseId: string) => {
 
 	const tabs: CanvasTab[] = await response.json();
 	return tabs
-		.filter((tab) => tab.type !== 'external' && !tab.id.startsWith('context_external_tool_'))
+		.filter((tab) => {
+			// Keep Notebook/Collaborations/Chat even when they are external LTI tools
+			const label = (tab.label ?? '').toLowerCase();
+			if (label.includes('notebook') || label.includes('collaborat') || label.includes('chat'))
+				return true;
+			return tab.type !== 'external' && !tab.id.startsWith('context_external_tool_');
+		})
 		.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 		.map((tab) => ({
 			id: tab.id,
@@ -713,6 +729,17 @@ interface CanvasAssignment {
 	grading_type?: string | null;
 }
 
+interface CanvasSubmission {
+	id: number;
+	score?: number | null;
+	grade?: string | null;
+	graded_at?: string | null;
+	submitted_at?: string | null;
+	workflow_state?: string | null;
+	excused?: boolean | null;
+	assignment?: CanvasAssignment | null;
+}
+
 interface CanvasDiscussion {
 	id: number;
 	title?: string | null;
@@ -796,6 +823,38 @@ export const getCourseAnnouncements = query('unchecked', async (courseId: string
 		htmlUrl: a.html_url ?? a.url ?? null,
 		replyCount: a.reply_count ?? 0
 	}));
+});
+
+export const getCourseGrades = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+
+	const url = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/students/submissions`);
+	url.searchParams.append('student_ids[]', 'self');
+	url.searchParams.append('include[]', 'assignment');
+	url.searchParams.set('per_page', '100');
+	const res = await fetch(url, { headers: { Authorization: `Bearer ${apiKey}` } });
+	if (!res.ok) error(res.status, 'Unable to load grades');
+	const submissions: CanvasSubmission[] = await res.json();
+
+	return (Array.isArray(submissions) ? submissions : [])
+		.filter((submission) => submission.assignment)
+		.map((submission) => ({
+			id: submission.id,
+			assignmentId: submission.assignment!.id,
+			name: submission.assignment!.name ?? 'Untitled assignment',
+			dueAt: submission.assignment!.due_at ?? null,
+			pointsPossible: submission.assignment!.points_possible ?? null,
+			score: submission.score ?? null,
+			grade: submission.grade ?? null,
+			gradedAt: submission.graded_at ?? null,
+			submittedAt: submission.submitted_at ?? null,
+			workflowState: submission.workflow_state ?? null,
+			excused: submission.excused ?? false
+		}));
 });
 
 export const getCourseAssignments = query('unchecked', async (courseId: string) => {
@@ -960,6 +1019,51 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 	}));
 });
 
+export const getCourseAssignment = query(
+	'unchecked',
+	async (args: { courseId: string; assignmentId: string }) => {
+		const { courseId, assignmentId } = args;
+		const apiKey = env.CANVAS_API_KEY;
+		const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+		const parsedCourseId = Number(courseId);
+		const parsedAssignmentId = Number(assignmentId);
+		if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+		if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0)
+			error(400, 'Invalid course ID');
+		if (!Number.isSafeInteger(parsedAssignmentId) || parsedAssignmentId <= 0)
+			error(400, 'Invalid assignment ID');
+		const res = await fetch(
+			`${instanceUrl}/api/v1/courses/${parsedCourseId}/assignments/${parsedAssignmentId}`,
+			{ headers: { Authorization: `Bearer ${apiKey}` } }
+		);
+		if (!res.ok) error(res.status, 'Unable to load assignment');
+		const a: CanvasAssignment & {
+			course_id?: number;
+			allowed_attempts?: number | null;
+			group_category_id?: number | null;
+			omit_from_final_grade?: boolean | null;
+			moderated_grading?: boolean | null;
+			has_submitted_submissions?: boolean | null;
+		} = await res.json();
+		return {
+			id: a.id,
+			name: a.name ?? 'Untitled',
+			description: a.description ?? '',
+			dueAt: a.due_at ?? null,
+			pointsPossible: a.points_possible ?? null,
+			htmlUrl: a.html_url ?? null,
+			submissionTypes: a.submission_types ?? [],
+			workflowState: a.workflow_state ?? 'published',
+			published: a.published ?? true,
+			lockAt: a.lock_at ?? null,
+			unlockAt: a.unlock_at ?? null,
+			gradingType: a.grading_type ?? null,
+			allowedAttempts: a.allowed_attempts ?? null,
+			courseId: a.course_id ?? parsedCourseId
+		};
+	}
+);
+
 export const getCourseCollaborations = query('unchecked', async (courseId: string) => {
 	const apiKey = env.CANVAS_API_KEY;
 	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
@@ -1002,6 +1106,27 @@ export const getCourseDetails = query('unchecked', async (courseId: string) => {
 		courseCode: course.course_code ?? null,
 		syllabusBody: course.syllabus_body ?? '',
 		htmlUrl: course.html_url ?? `${instanceUrl}/courses/${parsedCourseId}/assignments/syllabus`
+	};
+});
+
+export const getCourseChatLaunch = query('unchecked', async (courseId: string) => {
+	const apiKey = env.CANVAS_API_KEY;
+	const instanceUrl = env.CANVAS_INSTANCE_URL?.replace(/\/$/, '');
+	const parsedCourseId = Number(courseId);
+	if (!apiKey || !instanceUrl) error(500, 'Canvas is not configured');
+	if (!Number.isSafeInteger(parsedCourseId) || parsedCourseId <= 0) error(400, 'Invalid course ID');
+	const res = await fetch(
+		`${instanceUrl}/api/v1/courses/${parsedCourseId}/external_tools/sessionless_launch?id=2&launch_type=course_navigation`,
+		{ headers: { Authorization: `Bearer ${apiKey}` } }
+	);
+	if (!res.ok) {
+		if (res.status === 404) return { url: null, name: 'Chat' };
+		error(res.status, 'Unable to load Chat');
+	}
+	const data: { url?: string; name?: string } = await res.json();
+	return {
+		url: data.url ?? null,
+		name: data.name ?? 'Chat Room'
 	};
 });
 

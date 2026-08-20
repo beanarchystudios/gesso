@@ -10,17 +10,15 @@
 		<title>Syllabus — {details.name} | Gesso</title>
 	{/await}
 </svelte:head>
-<main class="h-full w-full overflow-y-auto p-6">
+<main class="h-full w-full overflow-y-auto p-6 xl:p-8 2xl:p-10">
 	{#await courseDetails}
 		<div class="flex min-h-full items-center justify-center">
 			<Spinner class="size-10 text-muted-foreground" />
 		</div>
 	{:then details}
-		<article class="course-content mx-auto w-full max-w-3xl">
-			<h1 class="mb-2 text-xl font-semibold">{details.name}</h1>
-			{#if details.courseCode}
-				<p class="mb-6 text-sm text-muted-foreground">{details.courseCode}</p>
-			{/if}
+		<article
+			class="course-content mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl"
+		>
 			{#if details.syllabusBody}
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				{@html details.syllabusBody}
@@ -33,7 +31,7 @@
 							href={details.htmlUrl}
 							target="_blank"
 							rel="external noreferrer"
-							class="mt-3 inline-block text-sm font-medium text-primary hover:underline"
+							class="mt-3 inline-block text-sm font-medium text-chart-1 hover:underline"
 						>
 							Open in Canvas
 						</a>

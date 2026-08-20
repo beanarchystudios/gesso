@@ -11,6 +11,7 @@
 	let people = $state<Awaited<ReturnType<typeof getCoursePeople>> | null>(null);
 	let loading = $state(true);
 	let loadError = $state<string | null>(null);
+	let scrollEl: HTMLDivElement | undefined = $state(undefined);
 
 	const courseId = $derived(page.params.courseId!);
 
@@ -45,6 +46,10 @@
 			.toUpperCase();
 	}
 
+	function displayRole(role: string) {
+		return role.replace(/Enrollment$/i, '').trim() || role;
+	}
+
 	const filtered = $derived.by(() => {
 		if (!people) return [];
 		const q = query.trim().toLowerCase();
@@ -68,33 +73,40 @@
 </svelte:head>
 
 <main class="flex size-full flex-col overflow-hidden bg-background">
-	<div class="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden px-4 py-4">
-		<div class="relative shrink-0">
-			<HugeiconsIcon
-				icon={Search01Icon}
-				class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-foreground/60"
-			/>
-			<Input
-				bind:value={query}
-				placeholder="Search people"
-				aria-label="Search people"
-				class="h-9 rounded-full border border-border/40 bg-background pr-9 pl-9"
-				autocomplete="off"
-				disabled={loading}
-			/>
-			{#if query}
-				<button
-					type="button"
-					aria-label="Clear search"
-					onclick={() => (query = '')}
-					class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-				>
-					<HugeiconsIcon icon={Cancel01Icon} class="size-4" />
-				</button>
-			{/if}
+	<div bind:this={scrollEl} class="flex-1 overflow-y-auto">
+		<div class="sticky top-0 z-10 px-4 py-4 xl:px-6 2xl:px-8">
+			<div class="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
+				<div class="relative">
+					<HugeiconsIcon
+						icon={Search01Icon}
+						class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-foreground/60"
+					/>
+					<Input
+						bind:value={query}
+						placeholder="Search"
+						aria-label="Search people"
+						class="h-9 rounded-full border border-border/40 bg-background/85 pr-9 pl-9 shadow-sm backdrop-blur-2xl supports-[backdrop-filter]:bg-background/85"
+						autocomplete="off"
+						spellcheck="false"
+						disabled={loading}
+					/>
+					{#if query}
+						<button
+							type="button"
+							aria-label="Clear search"
+							onclick={() => (query = '')}
+							class="absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+						>
+							<HugeiconsIcon icon={Cancel01Icon} class="size-4" />
+						</button>
+					{/if}
+				</div>
+			</div>
 		</div>
 
-		<div class="mt-4 flex-1 overflow-y-auto pb-6">
+		<div
+			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-6xl 2xl:px-8"
+		>
 			{#if loading}
 				<div class="space-y-2">
 					<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
@@ -115,7 +127,7 @@
 					<button
 						type="button"
 						onclick={() => location.reload()}
-						class="mt-4 text-sm font-medium text-primary hover:underline"
+						class="mt-4 text-sm font-medium text-chart-1 hover:underline"
 					>
 						Try again
 					</button>
@@ -133,7 +145,7 @@
 						<button
 							type="button"
 							onclick={() => (query = '')}
-							class="mt-3 text-sm font-medium text-primary hover:underline"
+							class="mt-3 text-sm font-medium text-chart-1 hover:underline"
 						>
 							Clear search
 						</button>
@@ -144,7 +156,7 @@
 					{#each grouped as [role, members] (role)}
 						<div>
 							<p class="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-								{role} · {members.length}
+								{displayRole(role)} · {members.length}
 							</p>
 							<div class="overflow-hidden rounded-xl border bg-card">
 								{#each members as person, idx (person.id)}
@@ -166,7 +178,7 @@
 										<span
 											class="shrink-0 rounded-full bg-muted px-2 py-1 text-xs font-medium capitalize"
 										>
-											{role.replace(/Enrollment$/, '').trim()}
+											{displayRole(role)}
 										</span>
 									</div>
 								{/each}

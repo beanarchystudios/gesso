@@ -50,8 +50,26 @@
 		return null;
 	});
 
-	function getTabHref(tab: { id: string; href: string }) {
+	function isTabActive(tab: { id: string; label?: string }, active: string | null) {
+		if (!active) return false;
+		if (tab.id === active) return true;
+		const label = (tab.label ?? '').toLowerCase();
+		if (active === 'notebook' && label.includes('notebook')) return true;
+		if (active === 'collaborations' && label.includes('collaborat')) return true;
+		if (active === 'chat' && label.includes('chat')) return true;
+		if (
+			active === 'discussions' &&
+			(tab.id === 'discussion_topics' || label.includes('discussion'))
+		)
+			return true;
+		if (tab.id.startsWith('context_external_tool_') && label.includes(active.toLowerCase()))
+			return true;
+		return false;
+	}
+
+	function getTabHref(tab: { id: string; href: string; label?: string }) {
 		if (!courseId) return tab.href;
+		const label = (tab.label ?? '').toLowerCase();
 		if (tab.id === 'home') return resolve('/(app)/courses/[courseId]', { courseId: courseId! });
 		if (tab.id === 'modules')
 			return resolve('/(app)/courses/[courseId]/modules', { courseId: courseId! });
@@ -63,14 +81,25 @@
 			return resolve('/(app)/courses/[courseId]/discussions', { courseId: courseId! });
 		if (tab.id === 'people' || tab.id === 'roster')
 			return resolve('/(app)/courses/[courseId]/people', { courseId: courseId! });
-		if (tab.id === 'collaborations')
+		if (tab.id === 'collaborations' || label.includes('collaborat'))
 			return resolve('/(app)/courses/[courseId]/collaborations', { courseId: courseId! });
-		if (tab.id === 'pages' || tab.id === 'wiki')
+		if (tab.id === 'pages' || tab.id === 'wiki' || label.includes('notebook'))
 			return resolve('/(app)/courses/[courseId]/notebook', { courseId: courseId! });
 		if (tab.id === 'syllabus')
 			return resolve('/(app)/courses/[courseId]/syllabus', { courseId: courseId! });
 		if (tab.id === 'grades')
-			return resolve('/(app)/courses/[courseId]/assignments', { courseId: courseId! });
+			return resolve('/(app)/courses/[courseId]/grades', { courseId: courseId! });
+		if (tab.id === 'chat' || label.includes('chat'))
+			return resolve('/(app)/courses/[courseId]/chat', { courseId: courseId! });
+		// external LTI that we map by label
+		if (tab.id.startsWith('context_external_tool_')) {
+			if (label.includes('notebook'))
+				return resolve('/(app)/courses/[courseId]/notebook', { courseId: courseId! });
+			if (label.includes('collaborat'))
+				return resolve('/(app)/courses/[courseId]/collaborations', { courseId: courseId! });
+			if (label.includes('chat'))
+				return resolve('/(app)/courses/[courseId]/chat', { courseId: courseId! });
+		}
 		return tab.href;
 	}
 
@@ -148,7 +177,7 @@
 						{:then tabs}
 							{#each tabs as tab (tab.id)}
 								<Sidebar.MenuItem>
-									<Sidebar.MenuButton isActive={tab.id === activeCourseTabId}>
+									<Sidebar.MenuButton isActive={isTabActive(tab, activeCourseTabId)}>
 										{#snippet child({ props })}
 											<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 											<a {...props} href={getTabHref(tab)} title={tab.label}>

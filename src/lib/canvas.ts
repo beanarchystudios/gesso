@@ -6,7 +6,9 @@ import {
 	getConversation as fetchConversation,
 	getConversations as fetchConversations,
 	getCourseAnnouncements as fetchCourseAnnouncements,
+	getCourseAssignment as fetchCourseAssignment,
 	getCourseAssignments as fetchCourseAssignments,
+	getCourseChatLaunch as fetchCourseChatLaunch,
 	getCourseCollaborations as fetchCourseCollaborations,
 	getCourseDetails as fetchCourseDetails,
 	getCourseDiscussions as fetchCourseDiscussions,
@@ -14,6 +16,7 @@ import {
 	getCoursePeople as fetchCoursePeople,
 	getCourses as fetchCourses,
 	getCourseFrontPage as fetchCourseFrontPage,
+	getCourseGrades as fetchCourseGrades,
 	getCourseModules as fetchCourseModules,
 	getCourseTabs as fetchCourseTabs,
 	getFavoriteCourses as fetchFavoriteCourses
@@ -113,6 +116,16 @@ export function getCourseAssignments(courseId: string) {
 	return cached(`course:${courseId}:assignments`, () => fetchCourseAssignments(courseId));
 }
 
+export function getCourseGrades(courseId: string) {
+	return cached(`course:${courseId}:grades`, () => fetchCourseGrades(courseId));
+}
+
+export function getCourseAssignment(courseId: string, assignmentId: string) {
+	return cached(`course:${courseId}:assignment:${assignmentId}`, () =>
+		fetchCourseAssignment({ courseId, assignmentId })
+	);
+}
+
 export function getCourseDiscussions(courseId: string) {
 	return cached(`course:${courseId}:discussions`, () => fetchCourseDiscussions(courseId));
 }
@@ -131,6 +144,10 @@ export function getCourseCollaborations(courseId: string) {
 
 export function getCourseDetails(courseId: string) {
 	return cached(`course:${courseId}:details`, () => fetchCourseDetails(courseId));
+}
+
+export function getCourseChatLaunch(courseId: string) {
+	return cached(`course:${courseId}:chat-launch`, () => fetchCourseChatLaunch(courseId));
 }
 
 export function getConversations() {

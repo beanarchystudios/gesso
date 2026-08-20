@@ -42,7 +42,7 @@
 		data-slot="sidebar-wrapper"
 		style="--sidebar-width: {SIDEBAR_WIDTH}; --sidebar-width-icon: {SIDEBAR_WIDTH_ICON}; {style}"
 		class={cn(
-			'group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar',
+			'group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar min-[1920px]:[--sidebar-width:19rem] xl:[--sidebar-width:17rem] 2xl:[--sidebar-width:18rem]',
 			className
 		)}
 		bind:this={ref}

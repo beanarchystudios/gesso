@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { getCourseModules } from '$lib/canvas';
 	import { Input } from '$lib/components/ui/input';
@@ -38,6 +39,7 @@
 				title: string;
 				type: string;
 				htmlUrl: string | null;
+				contentId: number | null;
 				indent: number;
 		  };
 
@@ -103,6 +105,23 @@
 		if (qi !== q.length) return -1;
 		score -= Math.floor(t.length / 30);
 		return score;
+	}
+
+	type ItemRow = Extract<FlatRow, { kind: 'item' }>;
+
+	function itemTarget(row: ItemRow): { href: string; external: boolean } | null {
+		const isAssignment = row.type.toLowerCase().includes('assign') && row.contentId != null;
+		if (isAssignment) {
+			return {
+				href: resolve('/(app)/courses/[courseId]/assignments/[assignmentId]', {
+					courseId,
+					assignmentId: String(row.contentId)
+				}),
+				external: false
+			};
+		}
+		if (row.htmlUrl) return { href: row.htmlUrl, external: true };
+		return null;
 	}
 
 	function itemIcon(type: string) {
@@ -171,6 +190,7 @@
 					title: it.title,
 					type: it.type,
 					htmlUrl: it.htmlUrl,
+					contentId: it.contentId,
 					indent: it.indent
 				});
 			}
@@ -185,8 +205,8 @@
 
 <main class="flex size-full flex-col overflow-hidden bg-background">
 	<div bind:this={scrollEl} class="flex-1 overflow-y-auto">
-		<div class="sticky top-0 z-10 px-4 py-4">
-			<div class="mx-auto w-full max-w-3xl">
+		<div class="sticky top-0 z-10 px-4 py-4 xl:px-6 2xl:px-8">
+			<div class="mx-auto w-full max-w-3xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl">
 				<div class="relative">
 					<HugeiconsIcon
 						icon={Search01Icon}
@@ -215,7 +235,9 @@
 			</div>
 		</div>
 
-		<div class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6">
+		<div
+			class="mx-auto w-full max-w-3xl px-4 pt-2 pb-6 lg:max-w-4xl xl:max-w-5xl xl:px-6 2xl:max-w-6xl 2xl:px-8"
+		>
 			{#if loading}
 				<div
 					class="overflow-hidden rounded-xl border bg-card"
@@ -245,7 +267,7 @@
 					<button
 						type="button"
 						onclick={() => location.reload()}
-						class="mt-4 text-sm font-medium text-primary hover:underline"
+						class="mt-4 text-sm font-medium text-chart-1 hover:underline"
 					>
 						Try again
 					</button>
@@ -265,7 +287,7 @@
 					<button
 						type="button"
 						onclick={() => (query = '')}
-						class="mt-3 text-sm font-medium text-primary hover:underline"
+						class="mt-3 text-sm font-medium text-chart-1 hover:underline"
 					>
 						Clear search
 					</button>
@@ -313,44 +335,67 @@
 											{row.title}
 										</span>
 									</div>
-								{:else if row.htmlUrl}
-									<a
-										href={row.htmlUrl}
-										target="_blank"
-										rel="noreferrer"
-										class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 {idx !==
-										0
-											? 'border-t border-border'
-											: ''}"
-										style:padding-left="{16 + row.indent * 16}px"
-									>
-										<HugeiconsIcon
-											icon={itemIcon(row.type)}
-											class="size-4 shrink-0 text-muted-foreground"
-										/>
-										<span class="min-w-0 flex-1 truncate text-sm">
-											{row.title}
-										</span>
-										<HugeiconsIcon
-											icon={ExternalLinkIcon}
-											class="size-3.5 shrink-0 text-foreground/30"
-										/>
-									</a>
 								{:else}
-									<div
-										class="flex w-full items-center gap-3 px-4 py-3 {idx !== 0
-											? 'border-t border-border'
-											: ''}"
-										style:padding-left="{16 + row.indent * 16}px"
-									>
-										<HugeiconsIcon
-											icon={itemIcon(row.type)}
-											class="size-4 shrink-0 text-muted-foreground"
-										/>
-										<span class="min-w-0 flex-1 truncate text-sm">
-											{row.title}
-										</span>
-									</div>
+									{@const target = itemTarget(row)}
+									{#if target?.external}
+										<a
+											href={target.href}
+											target="_blank"
+											rel="external noreferrer"
+											class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 {idx !==
+											0
+												? 'border-t border-border'
+												: ''}"
+											style:padding-left="{16 + row.indent * 16}px"
+										>
+											<HugeiconsIcon
+												icon={itemIcon(row.type)}
+												class="size-4 shrink-0 text-muted-foreground"
+											/>
+											<span class="min-w-0 flex-1 truncate text-sm">
+												{row.title}
+											</span>
+											<HugeiconsIcon
+												icon={ExternalLinkIcon}
+												class="size-3.5 shrink-0 text-foreground/30"
+											/>
+										</a>
+									{:else if target}
+										<a
+											href={resolve('/(app)/courses/[courseId]/assignments/[assignmentId]', {
+												courseId,
+												assignmentId: String(row.contentId!)
+											})}
+											class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/40 {idx !==
+											0
+												? 'border-t border-border'
+												: ''}"
+											style:padding-left="{16 + row.indent * 16}px"
+										>
+											<HugeiconsIcon
+												icon={itemIcon(row.type)}
+												class="size-4 shrink-0 text-muted-foreground"
+											/>
+											<span class="min-w-0 flex-1 truncate text-sm">
+												{row.title}
+											</span>
+										</a>
+									{:else}
+										<div
+											class="flex w-full items-center gap-3 px-4 py-3 {idx !== 0
+												? 'border-t border-border'
+												: ''}"
+											style:padding-left="{16 + row.indent * 16}px"
+										>
+											<HugeiconsIcon
+												icon={itemIcon(row.type)}
+												class="size-4 shrink-0 text-muted-foreground"
+											/>
+											<span class="min-w-0 flex-1 truncate text-sm">
+												{row.title}
+											</span>
+										</div>
+									{/if}
 								{/if}
 							{/if}
 						{/snippet}
