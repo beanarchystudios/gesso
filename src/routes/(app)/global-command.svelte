@@ -237,7 +237,7 @@
 	description={enhancedEnabled ? 'Search supported Canvas content' : 'Search courses'}
 	class="top-1/2! w-[min(42rem,calc(100vw-2rem))] -translate-y-1/2! rounded-2xl! border-border/60 shadow-2xl backdrop-blur-xl"
 >
-	<div class="border-b border-border/60 p-2">
+	<div class="border-b border-border/60">
 		<Command.Input
 			bind:value={query}
 			class="h-11 text-base"
@@ -245,9 +245,17 @@
 			autofocus
 		/>
 	</div>
-	<Command.List class="max-h-[min(55vh,26rem)] p-2">
-		{#if !searching}
-			<Command.Empty class="py-12">
+	<Command.List
+		class="max-h-[min(55vh,26rem)] {enhancedEnabled &&
+		!query.trim() &&
+		!searching &&
+		indexingStatus.status !== 'indexing' &&
+		!searchError
+			? 'p-0'
+			: 'p-1'}"
+	>
+		{#if !searching && (query.trim() || (enhancedEnabled && (indexingStatus.status === 'indexing' || searchError)))}
+			<Command.Empty class="py-6">
 				{#if enhancedEnabled && indexingStatus.status === 'indexing'}
 					Indexing your data… {indexingStatus.message}
 				{:else if enhancedEnabled && searchError}
