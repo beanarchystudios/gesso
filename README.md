@@ -25,13 +25,13 @@ Credentials live in IndexedDB on this browser. Gesso copies them into cookies so
 
 ## Using it
 
-The dashboard shows favorite courses. The sidebar has dashboard, courses, calendar, inbox, and notebook. Open a course and Gesso follows the tabs Canvas already shows: home, modules, assignments, announcements, discussions, people, grades, syllabus, collaborations, chat, and pages.
+The dashboard shows favorite courses. The sidebar has dashboard, courses, calendar, inbox, and notebook. Open a course and Gesso follows the tabs Canvas already shows: home, modules, assignments, announcements, discussions, people, grades, syllabus, files, collaborations, chat, and pages.
 
 Assignments are readable. Submitting still happens in Canvas. Chat opens Canvas's launch URL. Inbox can star, archive, and reply.
 
 On a course page, `h` `m` `a` `g` `n` jump to home, modules, assignments, grades, and announcements.
 
-Press `/`, Cmd+K, or Ctrl+K for search. With enhanced search off, it lists course names. Turn it on in Account to index assignments, pages, inbox, and calendar events in the browser with Orama. Courses index one at a time. Rebuild from Account when the index is stale.
+Press `/`, Cmd+K, or Ctrl+K for search. With enhanced search off, it lists course names. Turn it on in Account to index assignments, pages, files, inbox, and calendar events in the browser with Orama. Courses index one at a time. Rebuild from Account when the index is stale.
 
 Canvas responses cache in IndexedDB. Fresh for five minutes. After that Gesso returns the cached copy and refreshes in the background. After seven days it fetches again. Clear the cache from Account.
 

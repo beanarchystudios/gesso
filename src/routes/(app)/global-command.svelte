@@ -38,6 +38,7 @@
 		module: { singular: 'Module', plural: 'Modules' },
 		module_item: { singular: 'Module item', plural: 'Module items' },
 		page: { singular: 'Page', plural: 'Pages' },
+		file: { singular: 'File', plural: 'Files' },
 		collaboration: { singular: 'Collaboration', plural: 'Collaborations' },
 		conversation: { singular: 'Message', plural: 'Inbox' },
 		calendar_event: { singular: 'Event', plural: 'Calendar' },
@@ -60,10 +61,11 @@
 			module: 6,
 			module_item: 7,
 			page: 8,
-			grade: 9,
-			person: 10,
-			conversation: 11,
-			collaboration: 12
+			file: 9,
+			grade: 10,
+			person: 11,
+			conversation: 12,
+			collaboration: 13
 		};
 		return order[type] ?? 99;
 	}

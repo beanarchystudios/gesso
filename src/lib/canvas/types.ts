@@ -270,3 +270,36 @@ export interface CanvasCourseDetails {
 	html_url?: string | null;
 	course_code?: string | null;
 }
+
+export interface CanvasFolder {
+	id: number;
+	name?: string | null;
+	full_name?: string | null;
+	parent_folder_id?: number | null;
+	files_count?: number | null;
+	folders_count?: number | null;
+	position?: number | null;
+	hidden?: boolean | null;
+	locked?: boolean | null;
+	hidden_for_user?: boolean | null;
+	locked_for_user?: boolean | null;
+}
+
+export interface CanvasFile {
+	id: number;
+	folder_id: number;
+	display_name?: string | null;
+	filename?: string | null;
+	'content-type'?: string | null;
+	url?: string | null;
+	size?: number | null;
+	created_at?: string | null;
+	updated_at?: string | null;
+	modified_at?: string | null;
+	thumbnail_url?: string | null;
+	mime_class?: string | null;
+	locked?: boolean | null;
+	hidden?: boolean | null;
+	locked_for_user?: boolean | null;
+	hidden_for_user?: boolean | null;
+}

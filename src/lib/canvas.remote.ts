@@ -1,5 +1,5 @@
 import { command, query } from '$app/server';
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import {
 	canvasHeaders,
 	fetchColors,
@@ -20,6 +20,8 @@ import type {
 	CanvasCourseDetails,
 	CanvasCourseUser,
 	CanvasDiscussion,
+	CanvasFile,
+	CanvasFolder,
 	CanvasModule,
 	CanvasPage,
 	CanvasPlannerItem,
@@ -769,6 +771,59 @@ export const getCourseAssignment = query(
 		};
 	}
 );
+
+export const getCourseFiles = query('unchecked', async (courseId: string) => {
+	const { apiKey, instanceUrl } = requireCanvasEnv();
+	const parsedCourseId = parseCourseId(courseId);
+	const headers = canvasHeaders(apiKey);
+
+	const foldersUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/folders`);
+	const filesUrl = new URL(`${instanceUrl}/api/v1/courses/${parsedCourseId}/files`);
+	filesUrl.searchParams.set('sort', 'display_name');
+	filesUrl.searchParams.set('order', 'asc');
+
+	const load = async <T>(url: URL, maxPages: number) => {
+		try {
+			return await fetchPaginated<T>(url, headers, { maxPages });
+		} catch (e) {
+			if (isHttpError(e) && (e.status === 403 || e.status === 404)) return [] as T[];
+			throw e;
+		}
+	};
+
+	const [folders, files] = await Promise.all([
+		load<CanvasFolder>(foldersUrl, 20),
+		load<CanvasFile>(filesUrl, 50)
+	]);
+
+	return {
+		folders: folders
+			.filter((folder) => !folder.hidden_for_user)
+			.map((folder) => ({
+				id: folder.id,
+				name: folder.name ?? 'Untitled folder',
+				parentId: folder.parent_folder_id ?? null
+			})),
+		files: files
+			.filter((file) => !file.hidden_for_user)
+			.map((file) => {
+				const locked = file.locked_for_user ?? file.locked ?? false;
+				return {
+					id: file.id,
+					name: file.display_name ?? file.filename ?? 'Untitled file',
+					folderId: file.folder_id,
+					size: file.size ?? 0,
+					contentType: file['content-type'] ?? null,
+					mimeClass: file.mime_class ?? null,
+					url: locked ? null : (file.url ?? null),
+					thumbnailUrl: file.thumbnail_url ?? null,
+					createdAt: file.created_at ?? null,
+					updatedAt: file.updated_at ?? file.modified_at ?? null,
+					locked
+				};
+			})
+	};
+});
 
 export const getCourseCollaborations = query('unchecked', async (courseId: string) => {
 	const { apiKey, instanceUrl } = requireCanvasEnv();

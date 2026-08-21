@@ -8,6 +8,7 @@ import {
 	getCourseCollaborations,
 	getCourseDetails,
 	getCourseDiscussions,
+	getCourseFiles,
 	getCourseFrontPage,
 	getCourseGrades,
 	getCourseModules,
@@ -28,6 +29,7 @@ export type SearchDocumentType =
 	| 'module'
 	| 'module_item'
 	| 'page'
+	| 'file'
 	| 'collaboration'
 	| 'conversation'
 	| 'calendar_event'
@@ -272,6 +274,7 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 				getCoursePeople(courseId),
 				getCourseModules(courseId),
 				getCoursePages(courseId),
+				getCourseFiles(courseId),
 				getCourseCollaborations(courseId),
 				getCourseDetails(courseId),
 				getCourseGrades(courseId),
@@ -286,6 +289,7 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 				peopleRes,
 				modulesRes,
 				pagesRes,
+				filesRes,
 				collaborationsRes,
 				detailsRes,
 				gradesRes,
@@ -298,6 +302,7 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 				'people',
 				'modules',
 				'pages',
+				'files',
 				'collaborations',
 				'course details',
 				'grades',
@@ -450,6 +455,59 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 							pageId: String(p.id ?? p.url)
 						}),
 						meta: p.published ? '' : 'Unpublished',
+						term: ''
+					});
+				}
+			}
+
+			if (filesRes.status === 'fulfilled' && filesRes.value) {
+				const { folders, files } = filesRes.value;
+				const folderPath = (folderId: number | null) => {
+					const names: string[] = [];
+					let current = folderId;
+					const seen = new Set<number>();
+					while (current != null && !seen.has(current)) {
+						seen.add(current);
+						const folder = folders.find((item) => item.id === current);
+						if (!folder) break;
+						if (folder.parentId != null) names.unshift(folder.name);
+						current = folder.parentId;
+					}
+					return names.join(' / ');
+				};
+				for (const folder of folders) {
+					if (folder.parentId == null) continue;
+					perCourse.push({
+						id: `folder-${courseId}-${folder.id}`,
+						title: folder.name,
+						description: folderPath(folder.parentId) || 'Folder',
+						type: 'file',
+						courseId,
+						courseName,
+						href: resolve('/(app)/courses/[courseId]/files/[[folderId]]', {
+							courseId,
+							folderId: String(folder.id)
+						}),
+						meta: 'Folder',
+						term: ''
+					});
+				}
+				for (const file of files) {
+					perCourse.push({
+						id: `file-${courseId}-${file.id}`,
+						title: file.name,
+						description: folderPath(file.folderId) || 'File',
+						type: 'file',
+						courseId,
+						courseName,
+						href: withQuery(
+							resolve('/(app)/courses/[courseId]/files/[[folderId]]', {
+								courseId,
+								folderId: String(file.folderId)
+							}),
+							file.name
+						),
+						meta: 'File',
 						term: ''
 					});
 				}

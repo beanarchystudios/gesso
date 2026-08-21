@@ -23,6 +23,8 @@ export function getCourseTabHref(
 		return resolve('/(app)/courses/[courseId]/pages', { courseId });
 	if (tab.id === 'syllabus') return resolve('/(app)/courses/[courseId]/syllabus', { courseId });
 	if (tab.id === 'grades') return resolve('/(app)/courses/[courseId]/grades', { courseId });
+	if (tab.id === 'files')
+		return resolve('/(app)/courses/[courseId]/files/[[folderId]]', { courseId });
 	if (tab.id === 'chat' || label.includes('chat'))
 		return resolve('/(app)/courses/[courseId]/chat', { courseId });
 	if (tab.id.startsWith('context_external_tool_')) {
