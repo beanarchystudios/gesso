@@ -408,6 +408,23 @@ export const getConversation = query('unchecked', async (conversationId: string)
 	};
 });
 
+function plannerEventKey(title: string, start: string | null, contextCode: string | null) {
+	return `${title}|${start ?? ''}|${contextCode ?? ''}`;
+}
+
+function isPlannerItemComplete(item: CanvasPlannerItem): boolean {
+	if (item.planner_override?.marked_complete) return true;
+	const submissions = item.submissions;
+	if (!submissions || typeof submissions !== 'object') return false;
+	return submissions.submitted === true || submissions.excused === true;
+}
+
+function calendarAssignmentId(event: CanvasCalendarEvent): string | null {
+	if (event.assignment?.id != null) return String(event.assignment.id);
+	const match = String(event.id).match(/^assignment_(\d+)$/);
+	return match ? match[1] : null;
+}
+
 export const getCalendarEvents = query(
 	'unchecked',
 	async (opts: { start: string; end: string }) => {
@@ -441,6 +458,25 @@ export const getCalendarEvents = query(
 			colorsPromise
 		]);
 
+		const submittedAssignmentIds = new Set<string>();
+		const submittedKeys = new Set<string>();
+		for (const item of plannerItems) {
+			if (!isPlannerItemComplete(item)) continue;
+			const plannable = item.plannable ?? {};
+			const title = (plannable.title ?? String(item.plannable_id)).trim() || 'Untitled';
+			const start =
+				item.plannable_date ??
+				plannable.due_at ??
+				plannable.todo_date ??
+				plannable.start_at ??
+				null;
+			const contextCode = item.course_id != null ? `course_${item.course_id}` : null;
+			submittedKeys.add(plannerEventKey(title, start, contextCode));
+			if (item.plannable_type?.toLowerCase() === 'assignment' && item.plannable_id != null) {
+				submittedAssignmentIds.add(String(item.plannable_id));
+			}
+		}
+
 		const seen = new Set<string>();
 		const fromCalendar = calendarEvents
 			.filter((e) => !e.hidden)
@@ -454,14 +490,20 @@ export const getCalendarEvents = query(
 					assignmentDue ??
 					e.start_at ??
 					(e.all_day_date ? `${e.all_day_date}T00:00:00.000Z` : null);
+				const title = (e.assignment?.name ?? e.title ?? 'Untitled').trim() || 'Untitled';
+				if (isAssignment) {
+					const assignmentId = calendarAssignmentId(e);
+					if (assignmentId && submittedAssignmentIds.has(assignmentId)) return null;
+					if (submittedKeys.has(plannerEventKey(title, start, contextCode))) return null;
+				}
 				const end = e.end_at ?? null;
 				const color = contextCode ? (colors.custom_colors?.[contextCode] ?? null) : null;
 				const id = `cal-${e.id}`;
-				seen.add(`${e.title ?? ''}|${start ?? ''}|${contextCode ?? ''}`);
+				seen.add(plannerEventKey(title, start, contextCode));
 				return {
 					id,
 					rawId: String(e.id),
-					title: (e.assignment?.name ?? e.title ?? 'Untitled').trim() || 'Untitled',
+					title,
 					description: e.description ?? e.assignment?.description ?? null,
 					start,
 					end,
@@ -477,10 +519,12 @@ export const getCalendarEvents = query(
 					pointsPossible: e.assignment?.points_possible ?? null,
 					source: 'calendar' as const
 				};
-			});
+			})
+			.filter((x): x is NonNullable<typeof x> => x !== null);
 
 		const fromPlanner = plannerItems
 			.map((p) => {
+				if (isPlannerItemComplete(p)) return null;
 				const plannable = p.plannable ?? {};
 				const title = (plannable.title ?? String(p.plannable_id)).trim() || 'Untitled';
 				const start =
@@ -492,7 +536,7 @@ export const getCalendarEvents = query(
 						: p.context_type && p.context_type.toLowerCase() === 'course' && p.course_id
 							? `course_${p.course_id}`
 							: null;
-				const key = `${title}|${start ?? ''}|${contextCode ?? ''}`;
+				const key = plannerEventKey(title, start, contextCode);
 				if (seen.has(key)) return null;
 				seen.add(key);
 				const courseId = contextCode ? contextCode.replace('course_', '') : null;

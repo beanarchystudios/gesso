@@ -2,6 +2,25 @@ import { resolve } from '$app/paths';
 
 export { getCourseTabShortcut } from './course-shortcuts';
 
+export type CourseTab = {
+	id: string;
+	label: string;
+	href: string;
+};
+
+export function getCourseHomeTab(courseId: string): CourseTab {
+	return {
+		id: 'home',
+		label: 'Home',
+		href: resolve('/(app)/courses/[courseId]', { courseId })
+	};
+}
+
+export function ensureCourseHomeTab(tabs: CourseTab[], courseId: string): CourseTab[] {
+	if (tabs.some((tab) => tab.id === 'home')) return tabs;
+	return [getCourseHomeTab(courseId), ...tabs];
+}
+
 export function getCourseTabHref(
 	tab: { id: string; href: string; label?: string },
 	courseId: string

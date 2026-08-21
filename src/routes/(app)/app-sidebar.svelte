@@ -8,9 +8,11 @@
 	import * as Sidebar from '$lib/components/ui/sidebar';
 	import {
 		getActiveCourseTabId,
+		getCourseHomeTab,
 		getCourseTabHref,
 		getCourseTabShortcut,
-		isCourseTabActive
+		isCourseTabActive,
+		type CourseTab
 	} from '$lib/course-tabs';
 	import {
 		Calendar03Icon,
@@ -55,9 +57,8 @@
 		}
 	}
 
-	const LOADING_TAB_ROWS = [1, 2, 3, 4, 5];
-
 	const coursesPath = resolve('/(app)/courses');
+	const homeTab = $derived(courseId ? getCourseHomeTab(courseId) : null);
 
 	const activeCourseTabId = $derived.by(() =>
 		courseId ? getActiveCourseTabId(courseId, page.url.pathname) : null
@@ -87,6 +88,30 @@
 		{ label: 'Notebook', href: '/(app)/notebook', icon: Notebook01Icon }
 	] as const;
 </script>
+
+{#snippet courseTabItem(tab: CourseTab)}
+	<Sidebar.MenuItem>
+		<Sidebar.MenuButton isActive={isTabActive(tab, activeCourseTabId)}>
+			{#snippet child({ props })}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<a
+					{...props}
+					href={getTabHref(tab)}
+					title={tab.label}
+					aria-keyshortcuts={getCourseTabShortcut(tab)}
+				>
+					<span class="truncate">{tab.label}</span>
+					{#if getCourseTabShortcut(tab)}
+						<kbd class="ml-auto font-sans text-xs text-sidebar-foreground/50">
+							{getCourseTabShortcut(tab)}
+						</kbd>
+					{/if}
+				</a>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/snippet}
+		</Sidebar.MenuButton>
+	</Sidebar.MenuItem>
+{/snippet}
 
 <Sidebar.Root variant="inset">
 	<Sidebar.Header>
@@ -136,39 +161,17 @@
 				<Sidebar.GroupContent>
 					<Sidebar.Menu>
 						{#await courseTabs}
-							{#each LOADING_TAB_ROWS as row (row)}
-								<Sidebar.MenuItem>
-									<div
-										class="h-8 w-full animate-pulse rounded-md bg-sidebar-accent"
-										data-loading-row={row}
-									></div>
-								</Sidebar.MenuItem>
-							{/each}
+							{#if homeTab}
+								{@render courseTabItem(homeTab)}
+							{/if}
 						{:then tabs}
 							{#each tabs as tab (tab.id)}
-								<Sidebar.MenuItem>
-									<Sidebar.MenuButton isActive={isTabActive(tab, activeCourseTabId)}>
-										{#snippet child({ props })}
-											<!-- eslint-disable svelte/no-navigation-without-resolve -->
-											<a
-												{...props}
-												href={getTabHref(tab)}
-												title={tab.label}
-												aria-keyshortcuts={getCourseTabShortcut(tab)}
-											>
-												<span class="truncate">{tab.label}</span>
-												{#if getCourseTabShortcut(tab)}
-													<kbd class="ml-auto font-sans text-xs text-sidebar-foreground/50">
-														{getCourseTabShortcut(tab)}
-													</kbd>
-												{/if}
-											</a>
-											<!-- eslint-enable svelte/no-navigation-without-resolve -->
-										{/snippet}
-									</Sidebar.MenuButton>
-								</Sidebar.MenuItem>
+								{@render courseTabItem(tab)}
 							{/each}
 						{:catch}
+							{#if homeTab}
+								{@render courseTabItem(homeTab)}
+							{/if}
 							<p class="px-2 text-sm text-muted-foreground">Course navigation unavailable</p>
 						{/await}
 					</Sidebar.Menu>

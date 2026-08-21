@@ -163,8 +163,23 @@ export interface CanvasPlannerItem {
 		points_possible?: number | null;
 	};
 	new_activity?: boolean;
-	planner_override?: unknown;
-	submissions?: unknown;
+	planner_override?: {
+		marked_complete?: boolean | null;
+		dismissed?: boolean | null;
+	} | null;
+	submissions?:
+		| false
+		| {
+				submitted?: boolean;
+				excused?: boolean;
+				graded?: boolean;
+				late?: boolean;
+				missing?: boolean;
+				needs_grading?: boolean;
+				has_feedback?: boolean;
+				with_feedback?: boolean;
+		  }
+		| null;
 }
 
 export interface CanvasAnnouncementTopic {

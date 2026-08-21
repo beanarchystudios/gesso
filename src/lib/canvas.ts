@@ -26,6 +26,7 @@ import {
 	getFavoriteCourses as fetchFavoriteCourses
 } from './canvas.remote';
 import { cached, clearCanvasCache as clearCache, invalidateCanvasCache } from './cache';
+import { ensureCourseHomeTab } from './course-tabs';
 
 export { clearCanvasCache } from './cache';
 
@@ -42,7 +43,9 @@ export function getCanvasUser() {
 }
 
 export function getCourseTabs(courseId: string) {
-	return cached(`course:${courseId}:tabs`, () => fetchCourseTabs(courseId));
+	return cached(`course:${courseId}:tabs`, () =>
+		fetchCourseTabs(courseId).then((tabs) => ensureCourseHomeTab(tabs, courseId))
+	);
 }
 
 export function getCourseFrontPage(courseId: string) {
