@@ -208,6 +208,17 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 				term: ''
 			},
 			{
+				id: 'nav-notebook',
+				title: 'Notebook',
+				description: 'Personal notes on this device',
+				type: 'navigation',
+				courseId: '',
+				courseName: '',
+				href: '/notebook',
+				meta: 'navigation',
+				term: ''
+			},
+			{
 				id: 'nav-account',
 				title: 'Account',
 				description: 'Manage account and connection',
@@ -384,12 +395,13 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 							item.contentId != null && item.type.toLocaleLowerCase().includes('assign')
 								? toAssignmentHref(courseId, item.contentId)
 								: null;
-						const pageHref = item.pageUrl
-							? resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
-									courseId,
-									pageUrl: item.pageUrl
-								})
-							: null;
+						const pageHref =
+							item.contentId != null || item.pageUrl
+								? resolve('/(app)/courses/[courseId]/pages/[pageId]', {
+										courseId,
+										pageId: String(item.contentId ?? item.pageUrl)
+									})
+								: null;
 						perCourse.push({
 							id: `module_item-${courseId}-${m.id}-${item.id}`,
 							canonicalId: moduleItemCanonicalId(courseId, item),
@@ -427,15 +439,15 @@ export async function rebuildSearchIndex(): Promise<OramaInstance> {
 				}
 				for (const p of pagesRes.value) {
 					perCourse.push({
-						id: `page-${courseId}-${p.url}`,
+						id: `page-${courseId}-${p.id ?? p.url}`,
 						title: p.title,
 						description: stripHtml(pageBodies[p.url]) || (p.frontPage ? 'Front page' : 'Page'),
 						type: 'page',
 						courseId,
 						courseName,
-						href: resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+						href: resolve('/(app)/courses/[courseId]/pages/[pageId]', {
 							courseId,
-							pageUrl: p.url
+							pageId: String(p.id ?? p.url)
 						}),
 						meta: p.published ? '' : 'Unpublished',
 						term: ''

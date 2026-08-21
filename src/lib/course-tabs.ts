@@ -20,14 +20,13 @@ export function getCourseTabHref(
 	if (tab.id === 'collaborations' || label.includes('collaborat'))
 		return resolve('/(app)/courses/[courseId]/collaborations', { courseId });
 	if (tab.id === 'pages' || tab.id === 'wiki' || label.includes('notebook'))
-		return resolve('/(app)/courses/[courseId]/notebook', { courseId });
+		return resolve('/(app)/courses/[courseId]/pages', { courseId });
 	if (tab.id === 'syllabus') return resolve('/(app)/courses/[courseId]/syllabus', { courseId });
 	if (tab.id === 'grades') return resolve('/(app)/courses/[courseId]/grades', { courseId });
 	if (tab.id === 'chat' || label.includes('chat'))
 		return resolve('/(app)/courses/[courseId]/chat', { courseId });
 	if (tab.id.startsWith('context_external_tool_')) {
-		if (label.includes('notebook'))
-			return resolve('/(app)/courses/[courseId]/notebook', { courseId });
+		if (label.includes('notebook')) return resolve('/(app)/courses/[courseId]/pages', { courseId });
 		if (label.includes('collaborat'))
 			return resolve('/(app)/courses/[courseId]/collaborations', { courseId });
 		if (label.includes('chat')) return resolve('/(app)/courses/[courseId]/chat', { courseId });
@@ -42,7 +41,8 @@ export function isCourseTabActive(
 	if (!active) return false;
 	if (tab.id === active) return true;
 	const label = (tab.label ?? '').toLowerCase();
-	if (active === 'notebook' && label.includes('notebook')) return true;
+	if (active === 'pages' && (tab.id === 'pages' || tab.id === 'wiki' || label.includes('notebook')))
+		return true;
 	if (active === 'collaborations' && label.includes('collaborat')) return true;
 	if (active === 'chat' && label.includes('chat')) return true;
 	if (active === 'discussions' && (tab.id === 'discussion_topics' || label.includes('discussion')))

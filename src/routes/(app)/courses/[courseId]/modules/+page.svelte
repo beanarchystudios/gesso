@@ -99,11 +99,14 @@
 				external: false
 			};
 		}
-		if ((item.type === 'Page' || item.type === 'WikiPage') && item.pageUrl) {
+		if (
+			(item.type === 'Page' || item.type === 'WikiPage') &&
+			(item.contentId != null || item.pageUrl)
+		) {
 			return {
-				href: `${resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+				href: `${resolve('/(app)/courses/[courseId]/pages/[pageId]', {
 					courseId,
-					pageUrl: item.pageUrl
+					pageId: String(item.contentId ?? item.pageUrl)
 				})}?from=modules`,
 				external: false
 			};

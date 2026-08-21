@@ -7,15 +7,15 @@
 	import { HugeiconsIcon } from '@hugeicons/svelte';
 
 	const courseId = $derived(page.params.courseId!);
-	const pageUrl = $derived(page.params.pageUrl!);
-	const coursePage = $derived(getCoursePage(courseId, pageUrl));
+	const pageId = $derived(page.params.pageId!);
+	const coursePage = $derived(getCoursePage(courseId, pageId));
 	const fromModules = $derived(page.url.searchParams.get('from') === 'modules');
 	const backHref = $derived(
 		fromModules
 			? resolve('/(app)/courses/[courseId]/modules', { courseId })
-			: resolve('/(app)/courses/[courseId]/notebook', { courseId })
+			: resolve('/(app)/courses/[courseId]/pages', { courseId })
 	);
-	const backLabel = $derived(fromModules ? 'Back to modules' : 'Back to notebook');
+	const backLabel = $derived(fromModules ? 'Back to modules' : 'Back to pages');
 
 	function formatDate(iso: string | null) {
 		if (!iso) return null;

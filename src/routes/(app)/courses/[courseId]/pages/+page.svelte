@@ -28,7 +28,7 @@
 			})
 			.catch(() => {
 				if (cancelled) return;
-				loadError = 'Unable to load notebook pages.';
+				loadError = 'Unable to load pages.';
 				loading = false;
 			});
 		return () => {
@@ -52,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<title>Notebook | Gesso</title>
+	<title>Pages | Gesso</title>
 </svelte:head>
 
 <main class="flex size-full flex-col overflow-hidden bg-background">
@@ -67,7 +67,7 @@
 					<Input
 						bind:value={query}
 						placeholder="Search"
-						aria-label="Search notebook"
+						aria-label="Search pages"
 						class="h-9 rounded-full border border-border/40 bg-background/85 pr-9 pl-9 shadow-sm backdrop-blur-2xl supports-[backdrop-filter]:bg-background/85"
 						autocomplete="off"
 						spellcheck="false"
@@ -107,7 +107,7 @@
 				</div>
 			{:else if loadError}
 				<div class="rounded-xl border px-6 py-12 text-center">
-					<p class="text-sm font-medium">Couldn’t load notebook</p>
+					<p class="text-sm font-medium">Couldn’t load pages</p>
 					<p class="mt-1 text-sm text-muted-foreground">{loadError}</p>
 					<button
 						type="button"
@@ -124,7 +124,7 @@
 					</div>
 					<p class="mt-3 text-sm font-medium">{query ? 'No matches' : 'No pages'}</p>
 					<p class="mt-1 text-sm text-muted-foreground">
-						{query ? 'Try a different search term.' : 'This course has no notebook pages.'}
+						{query ? 'Try a different search term.' : 'This course has no pages.'}
 					</p>
 					{#if query}
 						<button
@@ -138,11 +138,11 @@
 				</div>
 			{:else}
 				<div class="overflow-hidden rounded-xl border bg-card">
-					{#each filtered as p, idx (p.url)}
+					{#each filtered as p, idx (p.id ?? p.url)}
 						<a
-							href={resolve('/(app)/courses/[courseId]/notebook/[pageUrl]', {
+							href={resolve('/(app)/courses/[courseId]/pages/[pageId]', {
 								courseId,
-								pageUrl: p.url
+								pageId: String(p.id ?? p.url)
 							})}
 							class="flex items-center gap-3 px-4 py-3.5 hover:bg-muted/40 {idx !== 0
 								? 'border-t border-border'

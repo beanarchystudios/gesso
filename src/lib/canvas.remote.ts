@@ -663,6 +663,7 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 		if (page > 10) break;
 	}
 	return pages.map((p) => ({
+		id: p.page_id ?? null,
 		url: p.url,
 		title: p.title ?? p.url,
 		createdAt: p.created_at ?? null,
@@ -675,13 +676,13 @@ export const getCoursePages = query('unchecked', async (courseId: string) => {
 
 export const getCoursePage = query(
 	'unchecked',
-	async (args: { courseId: string; pageUrl: string }) => {
+	async (args: { courseId: string; pageId: string }) => {
 		const { apiKey, instanceUrl } = requireCanvasEnv();
 		const parsedCourseId = parseCourseId(args.courseId);
-		if (!args.pageUrl.trim()) error(400, 'Invalid page URL');
+		if (!args.pageId.trim()) error(400, 'Invalid page ID');
 
 		const response = await fetch(
-			`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages/${encodeURIComponent(args.pageUrl)}`,
+			`${instanceUrl}/api/v1/courses/${parsedCourseId}/pages/${encodeURIComponent(args.pageId)}`,
 			{ headers: canvasHeaders(apiKey) }
 		);
 		if (!response.ok) error(response.status, 'Unable to load page');

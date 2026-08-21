@@ -82,8 +82,8 @@ export function getCoursePages(courseId: string) {
 	return cached(`course:${courseId}:pages`, () => fetchCoursePages(courseId));
 }
 
-export function getCoursePage(courseId: string, pageUrl: string) {
-	return cached(`course:${courseId}:page:${pageUrl}`, () => fetchCoursePage({ courseId, pageUrl }));
+export function getCoursePage(courseId: string, pageId: string) {
+	return cached(`course:${courseId}:page:${pageId}`, () => fetchCoursePage({ courseId, pageId }));
 }
 
 export function getCoursePageBodies(courseId: string, pageUrls: string[]) {
